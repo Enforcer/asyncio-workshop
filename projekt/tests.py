@@ -1,0 +1,12 @@
+from .app import app
+
+
+async def test_receives_sent_message(test_client):
+    client = await test_client(app)
+    connection = await client.ws_connect('/ws')
+
+    message = 'Hello, world!'
+    await connection.send_str(message)
+    response = await connection.receive_str()
+
+    assert response == message

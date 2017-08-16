@@ -1,5 +1,5 @@
 # asyncio-workshop
 
-Workshop for Pycon PL 2017.
+Warsztat na Pycon PL 2017.
 
-Work in progress!
+Zobacz instrukcja/index.html
