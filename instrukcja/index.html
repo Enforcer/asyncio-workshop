@@ -180,7 +180,7 @@ async def test_receives_sent_message(test_client):  # test_client jest 'magiczni
                       </div>
                     </div>
                 </div>
-                <p><b>Pro tip</b>: Przy komunikacji ze światem zewnętrznym nie wolno nikomu ufać. Dlatego zawsze stosuj <em>timeout'y</em> przy odbieraniu odpowiedzi! Przykład:</p>
+                <p><b>Pro tip</b>: Przy komunikacji ze światem zewnętrznym nie wolno nikomu ufać! Dlatego zawsze stosuj <em>timeout'y</em> przy odbieraniu odpowiedzi! Przykład:</p>
                 <pre><code class="python">response = await connection.receive_str(timeout=1)  # po sekundzie rzuca TimeoutError</code></pre>
                 <div class="alert alert-success" role="alert">
                     <h4>Zadanie 1.2b - wiadomości do pozostałych uczestników</h4>
@@ -207,10 +207,47 @@ async def websocket_handler(request):
                       </div>
                     </div>
                 </div>
+                <p>Być może podczas implementacji poprzedniego zadania doszło do sytuacji, że podczas próby wysłania wiadomości do uczestnika chatu nie był on już połączony przy pomocy websocketa. W takiej sytuacji dostaniemy wyjątek. Pora więc nie tylko oznaczyć uczestnikow czatu jako obecnych, ale też zadbać o to by byli usuwani z listy po rozłączeniu. Nie możemy też zapominać o obsłudze błędów przy wysyłaniu wiadomości!</p>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 1.3 - obsługa rozłączeń z chatu</h4>
+                    <p>Zadbaj o to, by uczestnicy byli usuwani po rozłączeniu z websocketem, tak aby nie podejmowano prób wysłania im wiadomości, które z oczywistych powodów nie mogą się udać. Potrzebna będzie też obsługa wyjątków przy nieudanej próbie wysyłki wiadomości.</p>
+                </div>
+                <p>Obsługa obecności "wewnątrz" aplikacji to jedno, ale pozostaje jeszcze kwestia przyjaznej dla uczestników prezentacji listy obecności. Obecnie w <em>index.html</em> zaimplementowane jest cykliczne zapytanie, które co 3 sekundy wysyła zapytanie na backend pod url <em>GET /members</em> i oczekuje w odpowiedzi prostej listy z ksywkami obecnych na czacie osób. Dane w odpowiedzi mają być w następującym formacie:</p>
+                <pre><code class="json">[
+    'kswyka1',
+    'kswyka2',
+    'kswyka_n'
+]</code></pre>
+                <p>Ksywka naszego uczestnika jest wysyłana w pierwotnych requeście na url /ws w nagłówkach jako 'nickname'</p>
+                <pre><code class="python">request.headers['X-Nickname']</code></pre>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 1.4 - zaimplementuj endpoint dla listy obecności</h4>
+                    <p>Aby zrealizować to zadanie trzeba będzie wzbogacić strukturę danych w której trzymasz podłączonych uczestników o ich ksywki wysyłane w nagłówku <em>X-Nickname</em></p>
+                </div>
+                <p>Na tym etapie mamy już całkiem nieźle funkcjonującą aplikację do chatowania. Jest jeszcze jedna rzecz, którą warto byłoby mieć - trzymanie historii dla przyszłych uczestników, którzy dołączą do pokoju. Powiedzmy, że nie interesują nas wszystkie wiadomości wysłane od początku działania aplikacji. Powinny wystarczyć nam wiadomości z powiedzmy ostatnich 10 minut od dołączenia.</p>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 1.5a - prezentuj nowym uczestnikom chatu archiwalne wiadomości sprzed maksymalnie 10 minut</h4>
+                    <p>Proste trzymanie wiadomości w pamięci aplikacji powinno wystarczyć. Jeżeli brak Ci pomysłu na zwracanie wiadomości tylko sprzed 10 minut - możesz pominąć to wymaganie i zawsze zwracać całą historię.</p>
+                </div>
+                <div class="alert alert-warning" role="alert">
+                    <h4>Zadanie 1.5b - przechowuj archiwalne wiadomość w pliku</h4>
+                    <p>Zwykle trzymanie danych w pamięci to kiepski pomysł. Zamiast tego spróbuj zapisać je na dysku. Koniecznie ochroń się przed jednoczesnymi modyfikacjami tego samego pliku - <a href="https://docs.python.org/3/library/asyncio-sync.html#asyncio.Lock">Lock</a>. <br>Do samej obsługi plików bez blokowania całej pętli zdarzeń można podejść na dwa sposoby: <br>a) wykorzystać executora (patrz prezentacja lub <a href="https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.run_in_executor">dokumentacja</a>) <br>b) przy pomocy zewnętrznej biblioteki <a href="https://github.com/Tinche/aiofiles">aiofiles</a>. </p>
+                </div>
 
-                <p>Zacznijmy od przedstawienia zasad gry w kręgle.
-                Każda gra składa się z 10 kolejek, podczas których każdy gracz ma dwie próby, żeby zbić 10 kręgli. Wynik za każdą kolejkę jest sumą zbitych podczas niej kręgli + dodatkowe punkty naliczane za tak zwanego strike'a lub spare'a.</p>
-                <p>Mówimy, że doszło do spare'a, gdy w ramach jednej kolejki w ciągu dwóch prób gracz zbije wszystkie 10 kręgli. Wtedy jeden kolejny rzut liczony jest podwójnie.</p><p>Na potrzeby ćwiczenia tyle wystarczy.</p>
+                <div class="alert alert-danger" role="alert">
+                    <h4>Zadanie 1.5c - nie blokuj całego czatu przez jednego wolnego klienta</h4>
+                    <p>Najprawdopodobniej zadanie 1.2 zostało zaimplementowane w sposób, który wysyła nowe wiadomości po kolei do obecnych na czacie uczestników. Spróbuj przerobić kod tak, by wysyłać wiadomości do wszystkich uczestników 'jednocześnie', tak by jeden powolny klient nienadążający z odbieraniem danych nie blokował całej aplikacji chatowej.</p>
+                    <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-3" aria-expanded="false" aria-controls="hint-3">Podpowiedź: jak podejść do problemu?</a>
+                    <div class="collapse" id="hint-3">
+                      <div class="well">
+                        Samo wywołanie <em>ws.send_str('response from a server')</em> poprzedzone słówkiem kluczowym await 'blokuje' miejsce, w którym się znajdujemy. Natomiast wartością wyrażenia <em>ws.send_str('response from a server')</em> jest obiekt, na który można <em>poczekać</em>. W asyncio są funkcje, dzięki którym można czekać na wiele takich obiektów jednocześnie:
+                        <pre><code class="python">await asyncio.gather(awaitable1, awaitable2, ...)
+await asyncio.wait(awaitable1, awaitable2, ...)
+</code></pre>
+Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem któregoś z tych rozwiązań.
+                      </div>
+                    </div>
+                </div>
                 <p>Przykładowo, tabela punktowa dla jednej z gier:</p>
                 <table class="table">
                     <thead>
