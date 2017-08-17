@@ -39,11 +39,11 @@ async def reconnecting_websocket(request):
 
 
 async def members(request):
-    return web.json_response(text='[]')
+    return web.json_response([])
 
 
 async def rooms(request):
-    return web.json_response(text='[]')
+    return web.json_response([])
 
 
 def create_app(loop=None):
