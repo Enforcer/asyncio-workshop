@@ -5,7 +5,6 @@ from aiohttp import (
 
 
 async def websocket_handler(request):
-
     ws = web.WebSocketResponse()
     await ws.prepare(request)
 
@@ -29,8 +28,23 @@ async def index(request):
     return web.FileResponse('./index.html')
 
 
+async def css(request):
+    return web.FileResponse('./static/style.css')
+
+
+async def reconnecting_websocket(request):
+    return web.FileResponse('./static/reconnecting-websocket.min.js')
+
+
+async def members(request):
+    return web.Response(text='[]')
+
+
 app = web.Application()
 app.router.add_get('/', index)
+app.router.add_get('/members', members)
+app.router.add_get('/style.css', css)
+app.router.add_get('/reconnecting-websocket.min.js', reconnecting_websocket)
 app.router.add_get('/ws', websocket_handler)
 
 if __name__ == '__main__':

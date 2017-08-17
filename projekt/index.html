@@ -3,8 +3,119 @@
 <head>
     <meta charset="utf-8">
     <title>Chat</title>
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<div class="container-fluid" id="wrapper">
+    <div class="row">
+        <div class="col-sm-8">
+            <div class="panel" id="messages-panel">
+                <div class="alert alert-success" id="nickname-show"></div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="panel">
+                <h3>Uczestnicy</h3>
+                <ul id="members-list"></ul>
+            </div>
+            <div class="panel">
+                <h3>Pokoje</h3>
+                <ul id="rooms-list"></ul>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <form id="message-form">
+            <div class="col-sm-8">
+                <input type="text" class="form-control" id="message-input" placeholder="wiadomość">
+            </div>
+            <div class="col-sm-4">
+                <button type="submit" class="btn btn-default" disabled="disabled">Wyślij</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="/reconnecting-websocket.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var messageSendBtn = document.querySelector('button[type=submit]');
+    var messageForm = document.getElementById('message-form');
+    var messageBox = document.getElementById('message-input');
+    var messagesPanel = document.getElementById('messages-panel');
 
+    var socket = new ReconnectingWebSocket(WS_URL, null, {debug: true, reconnectInterval: 3000});
+    socket.onopen = function() {
+        messageSendBtn.removeAttribute('disabled');
+    };
+    socket.onclose = function() {
+        messageSendBtn.disabled = 'disabled';
+    };
+
+    socket.onmessage = function(message) {
+        console.log(message);
+        var newMessage = document.createElement('div');
+        newMessage.className = 'alert alert-info message';
+        var text = document.createElement('span');
+        text.innerText = message.data;
+        var datetime = document.createElement('span');
+        datetime.className = 'datetime';
+        datetime.innerText = getFormattedTime();
+        newMessage.appendChild(datetime)
+        newMessage.appendChild(document.createElement('br'));
+        newMessage.appendChild(text);
+        messagesPanel.appendChild(newMessage);
+    };
+
+    messageForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        sendMessageIfPresent();
+    });
+
+    function sendMessageIfPresent() {
+        if (!messageBox.value) {
+            return;
+        }
+
+        socket.send(messageBox.value);
+        messageBox.value = '';
+    }
+
+    document.getElementById('nickname-show').innerText = 'Twój nick to ' + nickname;
+
+    setInterval(getMembersAndUpdateList, 3000);
+}, false);
+
+function getMembersAndUpdateList() {
+    var membersList = document.getElementById('members-list');
+    while (membersList.firstChild) {
+        membersList.removeChild(membersList.firstChild);
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'members');
+    xhr.send(null);
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+            var members = JSON.parse(xhr.responseText);
+            members.forEach(function (member) {
+                var el = document.createElement('li');
+                el.innerText = member;
+                membersList.appendChild(el);
+            });
+        }
+    };
+}
+
+function getFormattedTime() {
+    var d = new Date();
+    return ('0' + d.getHours()).slice(-2) + ":" + ('0' + d.getMinutes()).slice(-2) + ":" + ('0' + d.getSeconds()).slice(-2);
+}
+
+var names = ['Mary', 'Richard', 'Robert', 'John', 'James', 'Michael', 'William', 'David', 'Charles', 'Joseph', 'Thomas', 'Patricia', 'Linda', 'Jennifer', 'Chirstopher', 'Barbara', 'Daniel', 'Paul', 'Mark', 'Elizabeth'];
+var randomName =  names[(Math.random() * names.length) | 0];
+
+nickname = randomName.toLowerCase() + parseInt(Math.random() * 10000);
+var WS_URL = encodeURI('ws://localhost:8080/ws?nickname=' + nickname);
+</script>
 </body>
 </html>

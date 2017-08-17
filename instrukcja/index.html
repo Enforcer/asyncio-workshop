@@ -68,7 +68,7 @@ test_client = <function test_client.<locals>.go at 0x106339400>
 
     async def test_receives_sent_message(test_client):
         client = await test_client(app)
-        connection = await client.ws_connect('/ws')
+        connection = await client.ws_connect('/ws?nickname=JohnDoe')
 
         message = 'Hello, world!'
         connection.send_str(message)
@@ -125,18 +125,33 @@ websocket connection closed
             print('ws connection closed with exception %s' % ws.exception())  # wypisz treść błędu i zakończ
 
     return ws</code></pre>
-                <p>Pozostała część kodu w pliku <em>app.py</em> jest mniej interesująca, nie powinniśmy musieć nic tam zmieniać:</p>
-                <pre><code class="python">async def index(request):  # serwuj statycznie plik index.html
+                <p>Pozostała część kodu w pliku <em>app.py</em> zawiera kod inicjalizujący aiohttp i wystawiający kilka dodatkowych endpointów:</p>
+                <pre><code class="python">async def index(request):
     return web.FileResponse('./index.html')
 
 
-app = web.Application()  # inicjalizacja obiektu aplikaji (aiohttp)
-app.router.add_get('/', index)  # podepnij serwowanie index.html do ścieżki '/'
-app.router.add_get('/ws', websocket_handler)  # podepnij obsługę websocketu do ścieżki '/ws'
+async def css(request):
+    return web.FileResponse('./static/style.css')
 
-if __name__ == '__main__':  # uruchom serwer gdy uruchamiamy plik app.py bezpośrednio
+
+async def reconnecting_websocket(request):
+    return web.FileResponse('./static/reconnecting-websocket.min.js')
+
+
+async def members(request):
+    return web.Response(text='[]')
+
+
+app = web.Application()
+app.router.add_get('/', index)
+app.router.add_get('/members', members)
+app.router.add_get('/style.css', css)
+app.router.add_get('/reconnecting-websocket.min.js', reconnecting_websocket)
+app.router.add_get('/ws', websocket_handler)
+
+if __name__ == '__main__':
     web.run_app(app, port=8080)
-                </code></pre>
+</code></pre>
                 <p>Aby wystartować aplikację, wykonaj polecenie:</p>
                 <pre><code class="bash">python app.py</code></pre>
                 <p>Gdy otworzysz w przeglądarce <a href="http://127.0.0.1:8080/">http://127.0.0.1:8080/</a> powinieneś zobaczyć stronę chatu.</p>
@@ -167,7 +182,7 @@ async def test_receives_sent_message(test_client):  # test_client jest 'magiczni
                 <p>Powód jest oczywisty - nasz <em>websocket_handler</em> działa tylko w ramach jednego połączenia. Musimy gdzieś przechować listę obecnych klientów połączonych z adresem <em>/ws</em> i wysyłać wiadomość do wszystkich 'obecnych'.</p>
                 <div class="alert alert-warning" role="alert">
                     <h4>Zadanie 1.2a - wiadomości do pozostałych uczestników</h4>
-                    <p>Napisz test, który wykaże defekt opisany w poprzednim akapicie.</p>
+                    <p>Najpierw napisz test, który wykaże defekt opisany w poprzednim akapicie.</p>
                     <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-1" aria-expanded="false" aria-controls="hint-1">Podpowiedź: scenariusz testu</a>
                     <div class="collapse" id="hint-1">
                       <div class="well">
@@ -218,8 +233,8 @@ async def websocket_handler(request):
     'kswyka2',
     'kswyka_n'
 ]</code></pre>
-                <p>Ksywka naszego uczestnika jest wysyłana w pierwotnych requeście na url /ws w nagłówkach jako 'nickname'</p>
-                <pre><code class="python">request.headers['X-Nickname']</code></pre>
+                <p>Ksywka naszego uczestnika jest wysyłana w pierwotnym requeście na url /ws jako parametr 'nickname'</p>
+                <pre><code class="python">request.GET['nickname']</code></pre>
                 <div class="alert alert-success" role="alert">
                     <h4>Zadanie 1.4 - zaimplementuj endpoint dla listy obecności</h4>
                     <p>Aby zrealizować to zadanie trzeba będzie wzbogacić strukturę danych w której trzymasz podłączonych uczestników o ich ksywki wysyłane w nagłówku <em>X-Nickname</em></p>
@@ -248,152 +263,13 @@ Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem kt�
                       </div>
                     </div>
                 </div>
-                <p>Przykładowo, tabela punktowa dla jednej z gier:</p>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>#1</th>
-                            <th>#2</th>
-                            <th>#3</th>
-                            <th>#4</th>
-                            <th>#5</th>
-                            <th>#6</th>
-                            <th>#7</th>
-                            <th>#8</th>
-                            <th>#9</th>
-                            <th>#10</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>0 | 0</td>
-                            <td>3 | 7</td>
-                            <td>2 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 0</td>
-                            <td>1 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 0</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p>W kolejce 2. gracz uzyskał spare'a - zbił łącznie 10 kręgli w jednej kolejce, zatem jego kolejny rzut w 3. kolejce jest liczony podwójnie. Oprócz tego zbił także 1 sztukę w rundzie 6. Zatem jego łączny wynik za grę to 3 + 7 + 2 * 2 + 1 = 15 punktów.</p>
-                <h3>Zadanie 1.1</h3>
-                <p>Dana jest klasa Game z dwoma metodami publicznymi - roll oraz score. roll jest wywoływana po każdej próbie rzutu, jako argument przyjmuje liczbę zbitych w danym rzucie kręgli. score z kolei podaje wynik gry.</p>
-                <pre>
-                    <code class="python">class Game(object):
-
-    def roll(self, pins):
-        pass
-
-    def score(self):
-        pass</code>
-                </pre>
-                <p>Jako pierwszy przypadek sprawdzamy sytuację, gdy gracz przez całą grę nie zbił ani jednego kręgla. Test jest już gotowy. Uruchamiamy go komendą</p>
-                <pre><code class="bash">python 1-kata.py</code></pre><p>Test nie przechodzi i nic dziwnego - klasa Game nie posiada jeszcze implementacji.</p><pre><code class="">F
-======================================================================
-FAIL: test_one (__main__.BowlingGameTestCase)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "1-kata.py", line 24, in test_one
-    self.assertEquals(0, game.score())
-AssertionError: 0 != None
-
-----------------------------------------------------------------------
-Ran 1 test in 0.000s
-
-FAILED (failures=1)</code></pre>
-                <div class="alert alert-info" role="alert"><b>Polecenie</b>: Doprowadź pierwszy test do przejścia przy użyciu minimalnego możliwego wysiłku</div>
-                <h3>Zadanie 1.2</h3>
-                <p>Nieco trudniejsza sytuacja do rozważenia - tym razem w każdej próbie gracz zbija dokładnie jeden kręgiel.</p>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>#1</th>
-                            <th>#2</th>
-                            <th>#3</th>
-                            <th>#4</th>
-                            <th>#5</th>
-                            <th>#6</th>
-                            <th>#7</th>
-                            <th>#8</th>
-                            <th>#9</th>
-                            <th>#10</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>1 | 1</td>
-                            <td>1 | 1</td>
-                            <td>1 | 1</td>
-                            <td>1 | 1</td>
-                            <td>1 | 1</td>
-                            <td>1 | 1</td>
-                            <td>1 | 1</td>
-                            <td>1 | 1</td>
-                            <td>1 | 1</td>
-                            <td>1 | 1</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p>Jak nietrudno policzyć, łączny wynik za tę grę wyniesie 20 punktów.</p>
-                <div class="alert alert-info" role="alert"><b>Polecenie</b>: Napisz odpowiedni test, uruchom - powinien nie przejść. Następnie tak zmodyfikuj klasę Game, by nasz zestaw dwóch testów był cały czas spełniony.</div>
-                <div class="alert alert-warning" role="alert">Pamiętaj - minimum wysiłku! Małymi kroczkami do celu.</div>
-                <h3>Zadanie 1.3</h3>
-                <p>Powinniśmy rozważyć teraz kolejną sytuację, lecz mając już dwa testy nadszedł dobry moment na chwilę refleksji nad kodem. Jeżeli tylko trzymałeś się zasady minimalnego wysiłku i nie byłeś nadgorliwy, to w Twoich testach występuje duplikacja - powielony kod.</p>
-                <div class="alert alert-info" role="alert"><b>Polecenie</b>: Zrefaktoryzuj kod, by usunąć duplikację z testów. Testy muszą przechodzić po zakończonej operacji.</div>
-                <p class="hint">Podpowiedź: klasa TestCase z pakietu unittest posiada wbudowaną metody <a href="https://docs.python.org/2/library/unittest.html#unittest.TestCase.setUp">setUp</a> uruchamianą przed każdym testem. Można ją wykorzystać do inicjalizacji stanu początkowego wspólnego dla wszystkich metod.</p>
-                <h3>Zadanie 1.4</h3>
-                <p>Rozważmy kolejny, ostatni w tej części szkolenia przypadek - spare. Gra wyglądała następująco:</p>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>#1</th>
-                            <th>#2</th>
-                            <th>#3</th>
-                            <th>#4</th>
-                            <th>#5</th>
-                            <th>#6</th>
-                            <th>#7</th>
-                            <th>#8</th>
-                            <th>#9</th>
-                            <th>#10</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>5 | 5</td>
-                            <td>3 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 0</td>
-                            <td>0 | 1</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p>Zgodnie z informacjami we wprowadzeniu, w pierwszej kolejce gracz uzyskał spare'a, przez co jego kolejny rzut liczymy razy 2 do wyniku. Mamy jeszcze zbity jeden dodatkowy kręgiel w ostatniej próbie. Zatem oczekiwany wynik to 5 + 5 + 3 * 2 + 1 = 17 punktów</p>
-                <div class="alert alert-info" role="alert"><b>Polecenie</b>: Napisz test dla opisanego przypadku. Trzymaj się cyklu TDD - red (FAIL testu), green(test przechodzi), refactor.</div>
-                <div class="alert alert-warning" role="alert">Uruchamiaj regularnie cały zestaw testów. Chroń się przed regresją.</div>
-                <b>Więcej</b>:<ul>
-                    <li><a href="http://butunclebob.com/ArticleS.UncleBob.TheBowlingGameKata">http://butunclebob.com/ArticleS.UncleBob.TheBowlingGameKata</a></li>
-                    <li><a href="http://butunclebob.com/ArticleS.UncleBob.ThePrimeFactorsKata">http://butunclebob.com/ArticleS.UncleBob.ThePrimeFactorsKata</a></li>
-                    <li><a href="https://docs.python.org/3/library/unittest.html">https://docs.python.org/3/library/unittest.html</a>
-                </ul>
             </div>
         </div>
 
         <div class="panel panel-default">
-            <div class="panel-heading">Część druga - testy jednostkowe, usuwanie zależności</div>
+            <div class="panel-heading">Część druga - pokoje</div>
             <div class="panel-body">
-                <pre><code class="bash">Przejdź do katalogu 2-deps.
-Otwórz plik 1-deps.py</code></pre>
-                <p>Testowanie metod nieposiadających żadnych zależności jest proste i przyjemne. Tym razem zmierzymy się z mniej komfortową sytuacją.</p>
+                <p></p>
                 <h3>Zadanie 2.1</h3>
                 <p>Testujemy klasę <code>AuthService</code> z jedną metodą publiczną <code>authenticate</code> - przyjmuje login i hasło. Ma zwracać <code>True</code> jezeli dane sa poprawne, w przeciwnym wypadku <code>False</code>. Metoda ma też skutek uboczny - korzysta z <code>user_logged_in</code> obiektu klasy DummyEventBroker do rozesłania zdarzenia o pomyślnej autoryzacji.</p>
                 <p>Uruchomienie pliku 1-deps.py powinno poskutkować FAILem:</p>
