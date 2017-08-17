@@ -40,7 +40,16 @@
                 <input type="text" class="form-control" id="message-input" placeholder="wiadomość">
             </div>
             <div class="col-sm-4">
-                <button type="submit" class="btn btn-default" disabled="disabled" id="message-send-btn">Wyślij</button>
+                <div class="row">
+                    <div class="col-sm-8">
+                        <select class="form-control" id="rooms-select">
+                            <option value="">(wybierz pokój)</option>
+                        </select>
+                    </div>
+                    <div class="col-sm-4">
+                        <button type="submit" class="btn btn-default pull-right" disabled="disabled" id="message-send-btn">Wyślij</button>
+                    </div>
+                </div>
             </div>
         </form>
     </div>
@@ -54,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var messagesPanel = document.getElementById('messages-panel');
     var roomsForm = document.getElementById('rooms-form');
 
-    var socket = new ReconnectingWebSocket(WS_URL, null, {debug: true, reconnectInterval: 3000});
+    var socket = new ReconnectingWebSocket(WS_URL, null, {debug: false, reconnectInterval: 3000});
     socket.onopen = function() {
         messageSendBtn.removeAttribute('disabled');
     };
@@ -101,6 +110,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('nickname-show').innerText = 'Twój nick to ' + nickname;
 
+    getMembersAndUpdateList();
+    refreshRoomList();
     setInterval(getMembersAndUpdateList, 3000);
     setInterval(refreshRoomList, 3000);
 
@@ -124,6 +135,22 @@ function addRoom() {
     xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
     xhr.send(encodeURI('name=' + roomName));
     xhr.onreadystatechange = function () {
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                refreshRoomList();
+            } else {
+                alert('Wystąpił błąd: ' + xhr.statusText);
+            }
+        }
+    };
+}
+
+function leaveRoom(roomName) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'leave-room?nickname=' + nickname, true);
+    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+    xhr.send(encodeURI('name=' + roomName));
+    xhr.onreadystatechange = function () {
         if (xhr.readyState == 4 && xhr.status == 200) {
             refreshRoomList();
         }
@@ -144,7 +171,21 @@ function refreshRoomList() {
             var rooms = JSON.parse(xhr.responseText);
             rooms.forEach(function (room) {
                 var el = document.createElement('li');
-                el.innerText = room;
+                var name = document.createElement('span');
+                name.innerText = room.name;
+                el.appendChild(name);
+                if (room.present) {
+                    var leaveBtn = document.createElement('button');
+                    leaveBtn.setAttribute('data-room-name', room.name);
+                    leaveBtn.setAttribute('type', 'button');
+                    leaveBtn.innerText = 'X';
+                    leaveBtn.className = 'btn btn-primary btn-xs';
+                    el.appendChild(leaveBtn);
+                    leaveBtn.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        leaveRoom(this.getAttribute('data-room-name'));
+                    });
+                }
                 roomsList.appendChild(el);
             });
         }

@@ -32,6 +32,9 @@
         display: inline-block;
         margin: 1em 0;
     }
+    mark {
+        background: rgba(255, 255, 255, 0.3);
+    }
     </style>
   </head>
   <body>
@@ -93,6 +96,12 @@ websocket connection closed
                     <li><a href="https://docs.python.org/3/library/asyncio.html">Dokumentacja asyncio</a>
                     <li><a href="http://aiohttp.readthedocs.io/en/stable/">Dokumentacja aiohttp</a>
                 </ul>
+            </div>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-heading">Lista endpointów - komunikacja pomiędzy frondentem, a backendem</div>
+            <div class="panel-body">
+                TODO
             </div>
         </div>
 
@@ -204,6 +213,8 @@ async def test_receives_sent_message(test_client):  # test_client jest 'magiczni
                 <div class="alert alert-success" role="alert">
                     <h4>Zadanie 1.2b - wiadomości do pozostałych uczestników</h4>
                     <p>Zaimplementuj wysyłanie wiadomości do wszystkich podłączonych uczestników czatu.</p>
+                    <p>Wypadałoby też, żeby uczestnicy wiedzieli z kim mają do czynienia - w danych wysyłanych poprawnie uzupełniaj pole 'from' nickiem użytkownika</p>
+                    <pre><code class="python">{'message': 'response from the server', <mark>'from': 'anonymous'</mark>}</code></pre>
                     <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-2" aria-expanded="false" aria-controls="hint-2">Podpowiedź: gdzie przechować uczestników chatu?</a>
                     <div class="collapse" id="hint-2">
                       <div class="well">
@@ -273,7 +284,123 @@ Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem kt�
         <div class="panel panel-default">
             <div class="panel-heading">Część druga - pokoje</div>
             <div class="panel-body">
-                <p></p>
+                <p>Do tej pory wszystko było względnie proste i nieskomplikowane - mamy czat ogólny gdzie każdy uczestnik widzi wszystko to, co piszą pozostali uczestnicy. Wprowadźmy kolejny niezbędny element każdego czatu - prywatne pokoje.</p>
+                <p>Pokój jest 'pojemnikiem' na uczestników czatu. W danym pokoju może przebywać od 1 do potencjalnie nieograniczonej ilości uczestników jednocześnie (na tyle, na ile wystarczy zasobów komputera). Podobnie jeden uczestnik może przebywać we wszystkich pokojach czatowych jakie są.<br>
+                Pokój zapewnia powiązanie pomiędzy uczestnikami czatu, porządkuje konwersację i dba o to, by każdy w pokoju wiedział o wszystkim co zostaje napisane w jego ramach.</p>
+                <p>Pokój chatowy to bardzo wygodna i przydatna abstrakcja. Za jego pomocą można bardzo łatwo zamodelować chat ogólny - będzie to pokój w którym są po prostu wszyscy. W taki sam sposób można zamodelować prywatne rozmowy między dwoma uczestnikami - po prostu tworzymy pokój z dokładnie dwoma uczestnikami.</p>
+                <p style="text-align: center; margin: 30px 0;">
+                    <img src="res/chats.png">
+                </p>
+                <p>Dla zachowania porządku przyjmijmy zasadę, że puste pokoje chatowe nie powinny istnieć. <b>Musimy zapewnić automatyczne kasowanie pokoju w chwili, gdy liczba jego uczestników osiągnie zero</b>.</p>
+
+                <p>Szkielet pokoju można sobie wyobrazić jako klasę:</p>
+                <pre><code class="python">class ChatRoom:
+    def add_member(...):
+        pass
+
+    def remove_member(...):
+        pass
+
+    async def send_to_all_members(...):
+        pass</code></pre>
+                <div class="alert alert-warning" role="alert">
+                    <h4>Zadanie 2.1 - zacznij implementację <code>ChatRoom</code> używając TDD</h4>
+                    <p>Znając część interfejsu klasy <code>ChatRoom</code> zacznij ją implementować już teraz korzystając z testów jednostkowych.</p>
+                </div>
+                <p>Pozostałe metody, parametry podanych metod i właściwości samego pokoju pozostawia się uczestnikowi do samodzielnego opracowania jako ćwiczenie przy okazji realizacji kolejnych zadań z tej części warsztatu.</p>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.2 - zaimplementuj tworzenie nowego pokoju</h4>
+                    <p>Zadanie jest gotowe po stronie frontendowej - mamy możliwość dodania pokoju po wpisaniu jego nazwy. Kliknięcie przycisku 'Załóż' powoduje wysłanie żądania na backend pod adres:</p>
+                    <pre><code>POST /room?nickname=NICK
+name=NAZWA_POKOJU</code></pre>
+                    <p>Jest to zwykłe żądanie POST z jednym parametrem name. Tym razem do wykonania jest cała praca na backendzie - nie ma nawet utworzonego handlera ani dodanego routingu.</p>
+                    <p>Do danych formularza zawsze można się dostać przez obiekt żądania:</p>
+                    <pre><code class="python">request.POST['klucz']</code></pre>
+                </div>
+
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.3 - zaimplementuj zwracanie listy pokoi</h4>
+                    <p>Frontend w określonych sytuacjach odpytuje backendu o listę pokoi wysyłając żądanie pod adres</p>
+                    <pre><code>GET /rooms?nickname=NICK</code></pre>
+                    <p>Kolejnym zadaniem będzie zaimplementowanie odpowiedniej akcji. Dane zwracane mają być tekstem, który da się potem zdekodować do jsona:</p>
+                    <pre><code class="json">[
+    {
+        "name": "nazwa_pokoju_1",
+        "present": true
+    },
+    {
+        "name": "nazwa_pokoju_2",
+        "present": false
+    }
+]</code></pre>
+                <p>Dane mają format prostej listy obiektów, które mają po dwa pola. <code>name</code> to nazwa pokoju, a flaga <code>present</code> zawiera <code>true</code> gdy dany użytkownik jest obecny w danym pokoju. Pamiętaj, że do każdego żądania dołączany jest nickname użytkownika. Jego wykorzystanie było potrzebne w zadaniu 1.3</p>
+                </div>
+                <p>Mamy już proste początki obsługi pokoi, jak dodawanie nowego i zwracanie istniejących. Na początku tej części wspomniałem, że puste pokoje chcemy usuwać. Tym zajmiemy się już niedługo, ale co z obecnością w środku? Na początku prosty przypadek.</p>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.4 - osoba, która zakłada pokój automatycznie jest do niego dodawana</h4>
+                    <p>Obecność w pokoju powinna się wpływać na listę pokoi dodaną w poprzednim zadaniu, a konkretnie flaga <code>present</code> powinna mieć wartość <code>true</code> po dołączeniu. Obecność objawi się też na liście pokoi - pojawi się przycisk do wychodzenia z pokoju.</p>
+                </div>
+                <p>Zanim dojdziemy do dołączania do pokoi i w zasadzie zakończymy w ten sposób ich CRUDową (Create-Read-Update-Delete) obsługę, to zajmijmy się jeszcze samym mięsem - czyli wysyłaniem wiadomości pomiędzy uczestnikami.</p>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.5 - dodaj obsługę pokoju na backendzie</h4>
+                    <p>Na frontendzie obok przycisku <b>Wyślij</b> znajduje się pole jednokrotnego wyboru pokoju, na którym piszemy. Jeżeli cokolwiek z niego wybierzemy, to nazwa wybranego pokoju zostanie przesłana jako pole <code>room</code> na backend razem z wiadomością i nazwą nadawcy.</p>
+                    <p>Zadbaj o to, by wiadomości wysłane na dany pokój trafiały tylko do ludzi w nim obecnych.</p>
+                    <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-4" aria-expanded="false" aria-controls="hint-4">Podpowiedź: scenariusz testu</a>
+                    <div class="collapse" id="hint-4">
+                      <div class="well">
+                        <ul>
+                            <li>Połączenie A jest nawiązane
+                            <li>Połączenie B jest nawiązane
+                            <li>Połączenie A zakłada pokój
+                            <li>Połączenie A wysyła wiadomość na nowo założony pokój
+                            <li>Połączenie A odbiera wysłaną wiadomość wiadomość
+                            <li>Połączenie B nie dostaje wiadomości
+                        </ul>
+                      </div>
+                    </div>
+                </div>
+                <p>Wiadomości są już przekazywane w ramach pokoi i nie są dostępne dla uczestników chatu poza nimi. Jest jednak pewna bardzo słaba rzecz z punktu widzenia UX - użytkownik nie wie, z którego kanału dostał wiadomość.</p>
+                <p>Do tej pory protokół wymiany informacji pomiędzy frontendem, a backendem składał się z JSONa z dwoma polami - <code>message</code> - treść wiadomości i <code>from</code> - nazwy nadawcy. Do rozróżnienia które wiadomości pochodzą skąd - dorzućmy jeszcze trzecie pole <code>room</code> na nazwę pokoju, z którego wiadomość pochodzi:</p>
+                <pre><code class="json">{
+    "message": "Pewien tekst",
+    "from": "nazwa_nadawcy",
+    "room": "prywatne-rozmowy"
+}
+</code></pre>
+                <p><b>Frontend w pełni obsługuje to pole.</b></p>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.6 - do wiadomości wysłanych w ramach pokoju dodaj informację skąd dana wiadomość pochodzi</h4>
+                    <p></p>
+                </div>
+
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.7 - implementacja opuszczania pokoju</h4>
+                    <p>także w przypadku rozłączenia połączenia websocket</p>
+                </div>
+
+                <div class="alert alert-warning" role="alert">
+                    <h4>Zadanie 2.8 - automatyczne usuwanie pustego pokoju</h4>
+                    <p></p>
+                </div>
+
+                <div class="alert alert-danger" role="alert">
+                    <h4>Zadanie 2.9 - automatyczne usuwanie pustego pokoju po jakimś czasie</h4>
+                    <p>Kasowanie pustych pokoi od razu może być momentami zbyt agresywne. Zamiast tego podejdźmy do problemu poprzez usuwanie pustych pokojów po powiedzmy 5 sekundach od wyjścia ostatniej osoby.</p>
+                    <p><code>asyncio</code> posiada mechanizmy planowania zadań po jakimś czasie. Ich proste wykorzystanie:</p>
+                    <pre><code class="python">loop = asyncio.get_event_loop()
+def callback(arg):
+    print('hello {}!'.format(arg))
+    loop.stop()  # dwa polecenia zatrzymują i zamykają pętlę zdarzeń
+    loop.close()
+
+handle = loop.call_later(2, callback, 'world')
+# handle.cancel() metoda cancel na wyniku loop.call_later może odwołać zaplanowane zadanie
+loop.run_forever()</code></pre>
+                    <p>Należy oczywiście zabezpieczyć się przed sytuacją, w której uczestnicy dołączają do pokoju który za chwilę zostanie usunięty.</p>
+                </div>
+
+                <h1>POMYSŁ: pom/cze - usuwanie pokoju po jakimś czasie.</h1>
+
                 <h3>Zadanie 2.1</h3>
                 <p>Testujemy klasę <code>AuthService</code> z jedną metodą publiczną <code>authenticate</code> - przyjmuje login i hasło. Ma zwracać <code>True</code> jezeli dane sa poprawne, w przeciwnym wypadku <code>False</code>. Metoda ma też skutek uboczny - korzysta z <code>user_logged_in</code> obiektu klasy DummyEventBroker do rozesłania zdarzenia o pomyślnej autoryzacji.</p>
                 <p>Uruchomienie pliku 1-deps.py powinno poskutkować FAILem:</p>

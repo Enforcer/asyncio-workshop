@@ -43,7 +43,7 @@ async def members(request):
 
 
 async def rooms(request):
-    return web.Response(text='[]')
+    return web.Response(text='[{"name": "test", "present": true}]')
 
 
 app = web.Application()
