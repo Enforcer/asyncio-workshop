@@ -196,6 +196,7 @@ function refreshRoomList() {
             if (xhr.status == 200) {
                 var rooms = JSON.parse(xhr.responseText);
 
+                // lista po prawo
                 var presentRooms = [];
                 document.querySelectorAll('[data-list-type="room-entry"]').forEach(function (btnEl) {
                     var roomName = btnEl.getAttribute('data-room-name');
@@ -204,6 +205,38 @@ function refreshRoomList() {
                     }
                     presentRooms.push(roomName);
                 });
+
+                // select
+                var roomsSelect = document.querySelector('#rooms-select');
+                var roomsOnSelect = [];
+                document.querySelectorAll('#rooms-select option').forEach(function (option) {
+                    if (!option.value)  {
+                        return;
+                    }
+                    roomsOnSelect.push(option.value);
+                });
+                var roomsNamesIamIn = rooms.filter(function (room) {
+                    return room.present;
+                }).map(function (room) {
+                    return room.name;
+                });
+                var roomsNamesToDelete = roomsOnSelect.filter(function (roomName) {
+                    return roomsNamesIamIn.indexOf(roomName) < 0;
+                });
+                var roomsNamesToAdd = roomsNamesIamIn.filter(function (roomName) {
+                    return roomsOnSelect.indexOf(roomName) < 0;
+                });
+                roomsNamesToDelete.forEach(function (roomName) {
+                    document.querySelector('option[value="' + roomName + '"]').remove();
+                });
+                roomsNamesToAdd.forEach(function (roomName) {
+                    var el = document.createElement('option');
+                    el.value = roomName;
+                    el.innerText = roomName;
+                    roomsSelect.appendChild(el);
+                });
+
+                // end of select
 
                 rooms.forEach(function (room) {
                     var roomOnTheList = presentRooms.indexOf(room.name) !== -1;
