@@ -29,3 +29,8 @@ body {
 #rooms-list {
     height: 150px
 }
+
+#messages-panel {
+    max-height: 526px;
+    overflow-y: scroll;
+}

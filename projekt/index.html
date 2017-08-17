@@ -52,7 +52,6 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     socket.onmessage = function(message) {
-        console.log(message);
         var newMessage = document.createElement('div');
         newMessage.className = 'alert alert-info message';
         var text = document.createElement('span');
@@ -64,6 +63,7 @@ document.addEventListener('DOMContentLoaded', function () {
         newMessage.appendChild(document.createElement('br'));
         newMessage.appendChild(text);
         messagesPanel.appendChild(newMessage);
+        messagesPanel.scrollTop = messagesPanel.scrollHeight;
     };
 
     messageForm.addEventListener('submit', function(event) {
