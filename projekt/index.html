@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function () {
             message: messageBox.value,
             from: nickname
         };
-        var room = null;
+        var room = document.querySelector('#rooms-select').value;
         if (room) {
             messageData.room = room;
         }

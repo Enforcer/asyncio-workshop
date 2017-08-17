@@ -153,7 +153,8 @@ websocket connection closed
                 <h3>Dostęp do danych z żądania w aiohttp</h3>
                 <pre><code class="python">async def anyhandler(request):
     nickname = request.GET['nickname']   # obiekt podobny do dict'a, parametry z URLa
-    room_name = request.POST['name']     # obiekt podobny do dict'a, parametry z ciała w żądaniu POST</code></pre>
+    request_body = await request.post()
+    room_name = request_body['name']     # obiekt podobny do dict'a, parametry z ciała w żądaniu POST</code></pre>
                 <h3>Testowanie żądań HTTP z pytest-aiohttp</h3>
                 <pre><code class="python">async def test_http_methods(test_client):
     client = await test_client(app)
@@ -291,7 +292,7 @@ async def test_receives_sent_message(test_client):
                     <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-2" aria-expanded="false" aria-controls="hint-2">Podpowiedź: gdzie przechować uczestników czatu?</a>
                     <div class="collapse" id="hint-2">
                       <div class="well">
-                        Najprościej jest utworzyć listę globalnie w module:
+                        Najprościej jest utworzyć strukturę danych globalnie w module:
                         <pre><code class="python">connections = []
 async def websocket_handler(request):
 
@@ -386,9 +387,11 @@ Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem kt�
                     <p>Zadanie jest gotowe po stronie frontendowej - mamy możliwość dodania pokoju po wpisaniu jego nazwy. Kliknięcie przycisku 'Załóż' powoduje wysłanie żądania na backend pod adres:</p>
                     <pre><code>POST /room?nickname=NICK
 name=NAZWA_POKOJU</code></pre>
-                    <p>Jest to zwykłe żądanie POST z jednym parametrem name. Tym razem do wykonania jest cała praca na backendzie - nie ma nawet utworzonego handlera ani dodanego routingu.</p>
-                    <p>Do danych formularza zawsze można się dostać przez obiekt żądania:</p>
-                    <pre><code class="python">request.POST['klucz']</code></pre>
+                    <p>Jest to zwykłe żądanie POST z jednym parametrem name. Tym razem do wykonania jest cała praca na backendzie - nie ma nawet utworzonego handlera ani dodanego routingu. Przy dodwania routingu pamiętaj o skorzystaniu z właściwej metody</p>
+                    <pre><code class="python">app.router.add_post(url, handler)</code></pre>
+                    <p>Do danych formularza można się dostać przez obiekt żądania w następujący sposób:</p>
+                    <pre><code class="python">data_dict = await request.post()
+name = data_dict['name']</code></pre>
                 </div>
 
                 <div class="alert alert-warning" role="alert">
@@ -491,6 +494,11 @@ loop.run_forever()</code></pre>
                     <h4>Zadanie 2.10 - dołączanie do pokoi</h4>
                     <p>Zaimplementuj dołączanie do pokoju.</p>
                     <p>Frontend po kliknięciu pokoju na liście wysyła żądanie <code>POST join-room?nickname=NICK</code> z polem <code>name</code> żądania ustawionym na nazwę pokoju</p>
+                </div>
+                <p>Czegoś tu jeszcze brakuje... powiadomień o użytkownikach, którzy opuścili pokój!</p>
+                <div class="alert alert-warning" role="alert">
+                    <h4>Zadanie 2.11 - Powiadomienia o użytkownikach opuszczających pokój</h4>
+                    <p>Za każdym razem gdy jakiś uczestnik rozmowy opuści pokój wyślij do wszystkich pozostałych informację o tym. Jako wartość pola <code>from</code> możesz przyjąć dowolną wartośc, na przykład <code>server</code>.</p>
                 </div>
             </div>
         </div>
