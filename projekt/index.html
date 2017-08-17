@@ -120,7 +120,7 @@ function addRoom() {
     roomNameInput.value = '';
 
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'room', true);
+    xhr.open('POST', 'room?nickname=' + nickname, true);
     xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
     xhr.send(encodeURI('name=' + roomName));
     xhr.onreadystatechange = function () {
@@ -137,7 +137,7 @@ function refreshRoomList() {
     }
 
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', 'rooms');
+    xhr.open('GET', 'rooms?nickname=' + nickname);
     xhr.send(null);
     xhr.onreadystatechange = function () {
         if (xhr.readyState == 4 && xhr.status == 200) {
@@ -158,7 +158,7 @@ function getMembersAndUpdateList() {
     }
 
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', 'members');
+    xhr.open('GET', 'members?nickname=' + nickname);
     xhr.send(null);
     xhr.onreadystatechange = function () {
         if (xhr.readyState == 4 && xhr.status == 200) {
@@ -181,7 +181,7 @@ var names = ['Mary', 'Richard', 'Robert', 'John', 'James', 'Michael', 'William',
 var randomName =  names[(Math.random() * names.length) | 0];
 
 nickname = randomName.toLowerCase() + parseInt(Math.random() * 10000);
-var WS_URL = encodeURI('ws://localhost:8080/ws?nickname=' + nickname);
+var WS_URL = 'ws://localhost:8080/ws?nickname=' + nickname;
 </script>
 </body>
 </html>
