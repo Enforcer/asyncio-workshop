@@ -192,8 +192,9 @@ websocket connection closed
         # msg.data - data received
 
         if msg.type == WSMsgType.TEXT:  # jeżeli odebrano tekstową wiadomość
-            # msg.data - data received
-            await ws.send_str('response from a server')     # odeślij ciąg znaków 'response from a server'
+            await ws.send_json(
+                {'message': 'response from the server', 'from': 'anonymous'}
+            )   # odeślij wiadomość 'response from a server' od użytkownika anonymous
         elif msg.type == WSMsgType.ERROR:  # jeżeli zanotowano błąd
             print('ws connection closed with exception %s' % ws.exception())  # wypisz treść błędu i zakończ
 
