@@ -1,3 +1,4 @@
+import asyncio
 from aiohttp import (
     web,
     WSMsgType,
@@ -16,7 +17,6 @@ async def websocket_handler(request):
         # msg.data - data received
 
         if msg.type == WSMsgType.TEXT:
-            # msg.data - data received
             await ws.send_json(
                 {'message': 'response from the server', 'from': 'anonymous'}
             )
@@ -39,20 +39,26 @@ async def reconnecting_websocket(request):
 
 
 async def members(request):
-    return web.Response(text='[]')
+    return web.json_response(text='[]')
 
 
 async def rooms(request):
-    return web.Response(text='[{"name": "test", "present": true}]')
+    return web.json_response(text='[]')
 
 
-app = web.Application()
-app.router.add_get('/', index)
-app.router.add_get('/members', members)
-app.router.add_get('/rooms', rooms)
-app.router.add_get('/style.css', css)
-app.router.add_get('/reconnecting-websocket.min.js', reconnecting_websocket)
-app.router.add_get('/ws', websocket_handler)
+def create_app(loop=None):
+    if loop is None:
+        loop = asyncio.get_event_loop()
+    app = web.Application(loop=loop)
+    app.router.add_get('/', index)
+    app.router.add_get('/members', members)
+    app.router.add_get('/rooms', rooms)
+    app.router.add_get('/style.css', css)
+    app.router.add_get('/reconnecting-websocket.min.js', reconnecting_websocket)
+    app.router.add_get('/ws', websocket_handler)
+    return app
+
 
 if __name__ == '__main__':
+    app = create_app()
     web.run_app(app, port=8080)

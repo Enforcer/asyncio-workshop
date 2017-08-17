@@ -104,7 +104,15 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        socket.send(messageBox.value);
+        var messageData = {
+            message: messageBox.value,
+            from: nickname
+        };
+        var room = null;
+        if (room) {
+            messageData.room = room;
+        }
+        socket.send(JSON.stringify(messageData));
         messageBox.value = '';
     }
 
@@ -151,43 +159,101 @@ function leaveRoom(roomName) {
     xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
     xhr.send(encodeURI('name=' + roomName));
     xhr.onreadystatechange = function () {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-            refreshRoomList();
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                refreshRoomList();
+            } else {
+                alert('Wystąpił błąd: ' + xhr.statusText);
+            }
+        }
+    };
+}
+
+function joinRoom(roomName) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'join-room?nickname=' + nickname, true);
+    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+    xhr.send(encodeURI('name=' + roomName));
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                refreshRoomList();
+            } else {
+                alert('Wystąpił błąd: ' + xhr.statusText);
+            }
         }
     };
 }
 
 function refreshRoomList() {
     var roomsList = document.getElementById('rooms-list');
-    while (roomsList.firstChild) {
-        roomsList.removeChild(roomsList.firstChild);
-    }
 
     var xhr = new XMLHttpRequest();
     xhr.open('GET', 'rooms?nickname=' + nickname);
     xhr.send(null);
     xhr.onreadystatechange = function () {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-            var rooms = JSON.parse(xhr.responseText);
-            rooms.forEach(function (room) {
-                var el = document.createElement('li');
-                var name = document.createElement('span');
-                name.innerText = room.name;
-                el.appendChild(name);
-                if (room.present) {
-                    var leaveBtn = document.createElement('button');
-                    leaveBtn.setAttribute('data-room-name', room.name);
-                    leaveBtn.setAttribute('type', 'button');
-                    leaveBtn.innerText = 'X';
-                    leaveBtn.className = 'btn btn-primary btn-xs';
-                    el.appendChild(leaveBtn);
-                    leaveBtn.addEventListener('click', function (event) {
-                        event.preventDefault();
-                        leaveRoom(this.getAttribute('data-room-name'));
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                var rooms = JSON.parse(xhr.responseText);
+
+                var presentRooms = [];
+                document.querySelectorAll('[data-list-type="room-entry"]').forEach(function (btnEl) {
+                    var roomName = btnEl.getAttribute('data-room-name');
+                    if (presentRooms.indexOf(roomName) != -1) {
+                        return;
+                    }
+                    presentRooms.push(roomName);
+                });
+
+                rooms.forEach(function (room) {
+                    var roomOnTheList = presentRooms.indexOf(room.name) !== -1;
+                    presentRooms = presentRooms.filter(function (name) {
+                        return name != room.name;
                     });
-                }
-                roomsList.appendChild(el);
-            });
+                    if (!roomOnTheList) {
+                        var el = document.createElement('li');
+                        el.setAttribute('data-list-type', 'room-entry');
+                        el.setAttribute('data-room-name', room.name);
+                        var name = document.createElement('span');
+                        name.innerText = room.name;
+                        el.appendChild(name);
+                        roomsList.appendChild(el);
+                        el.addEventListener('click', function () {
+                            var delButton = document.querySelector('li[data-room-name="' + room.name + '"] button');
+                            if (delButton) {
+                                return;
+                            }
+                            joinRoom(room.name);
+                        })
+                    }
+
+                    var el = document.querySelector('li[data-room-name="' + room.name + '"]');
+                    var delButton = document.querySelector('li[data-room-name="' + room.name + '"] button');
+                    if (!room.present && delButton) {
+                        delButton.remove();
+                    }
+                    if (room.present && !delButton) {
+                        var leaveBtn = document.createElement('button');
+                        leaveBtn.setAttribute('data-room-name', room.name);
+                        leaveBtn.setAttribute('type', 'button');
+                        leaveBtn.innerText = 'X';
+                        leaveBtn.className = 'btn btn-primary btn-xs';
+                        el.appendChild(leaveBtn);
+                        leaveBtn.addEventListener('click', function (event) {
+                            event.preventDefault();
+                            leaveRoom(this.getAttribute('data-room-name'));
+                        });
+                    }
+                });
+
+                // remove remaining ones
+                presentRooms.forEach(function (roomName) {
+                    var roomEl = document.querySelector('li[data-room-name="' + roomName + '"]');
+                    roomEl.remove();
+                });
+            } else {
+                alert('Wystąpił błąd: ' + xhr.statusText);
+            }
         }
     };
 }
@@ -202,13 +268,17 @@ function getMembersAndUpdateList() {
     xhr.open('GET', 'members?nickname=' + nickname);
     xhr.send(null);
     xhr.onreadystatechange = function () {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-            var members = JSON.parse(xhr.responseText);
-            members.forEach(function (member) {
-                var el = document.createElement('li');
-                el.innerText = member;
-                membersList.appendChild(el);
-            });
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                var members = JSON.parse(xhr.responseText);
+                members.forEach(function (member) {
+                    var el = document.createElement('li');
+                    el.innerText = member;
+                    membersList.appendChild(el);
+                });
+            } else {
+                alert('Wystąpił błąd: ' + xhr.statusText);
+            }
         }
     };
 }
@@ -218,7 +288,7 @@ function getFormattedTime() {
     return ('0' + d.getHours()).slice(-2) + ":" + ('0' + d.getMinutes()).slice(-2) + ":" + ('0' + d.getSeconds()).slice(-2);
 }
 
-var names = ['Mary', 'Richard', 'Robert', 'John', 'James', 'Michael', 'William', 'David', 'Charles', 'Joseph', 'Thomas', 'Patricia', 'Linda', 'Jennifer', 'Chirstopher', 'Barbara', 'Daniel', 'Paul', 'Mark', 'Elizabeth'];
+var names = ['Mary', 'Richard', 'Robert', 'John', 'James', 'Michael', 'William', 'David', 'Charles', 'Joseph', 'Thomas', 'Patricia', 'Linda', 'Jennifer', 'Christopher', 'Barbara', 'Daniel', 'Paul', 'Mark', 'Elizabeth'];
 var randomName =  names[(Math.random() * names.length) | 0];
 
 nickname = randomName.toLowerCase() + parseInt(Math.random() * 10000);

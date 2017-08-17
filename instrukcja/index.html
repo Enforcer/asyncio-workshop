@@ -99,9 +99,73 @@ websocket connection closed
             </div>
         </div>
         <div class="panel panel-default">
-            <div class="panel-heading">Lista endpointów - komunikacja pomiędzy frondentem, a backendem</div>
+            <div class="panel-heading">Cheatsheet (przyda się później)</div>
             <div class="panel-body">
-                TODO
+                <h3>Lista endpointów - komunikacja pomiędzy frondentem, a backendem</h3>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Protokół/metoda HTTP</th>
+                            <th style="width: 30%">URL</th>
+                            <th>Pola w ciele żądania</th>
+                            <th>Opis</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>websocket</code></td>
+                            <td><code>/ws</code></td>
+                            <td>-</td>
+                            <td>Jedyny endpoint websocket dla czatu, przekazuje wiadomości od/do uczestnika</td>
+                        </tr>
+                        <tr>
+                            <td><code>POST</code></td>
+                            <td><code>room?nickname=NICK</code></td>
+                            <td><code>name</code> - nazwa pokoju</td>
+                            <td>Zakładanie pokoju przez użytkownika o nicku <code>NICK</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>POST</code></td>
+                            <td><code>leave-room?nickname=NICK</code></td>
+                            <td><code>name</code> - nazwa pokoju</td>
+                            <td>opuszczanie pokoju przez użytkownika o nicku <code>NICK</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>POST</code></td>
+                            <td><code>join-room?nickname=NICK</code></td>
+                            <td><code>name</code> - nazwa pokoju</td>
+                            <td>dołączenie do pokoju przez użytkownika o nicku <code>NICK</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>GET</code></td>
+                            <td><code>rooms?nickname=NICK</code></td>
+                            <td>-</td>
+                            <td>Pobranie listy pokojów jako użytkownik o nicku <code>NICK</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>GET</code></td>
+                            <td><code>members?nickname=NICK</code></td>
+                            <td>-</td>
+                            <td>Pobranie listy uczestników czatu</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <h3>Dostęp do danych z żądania w aiohttp</h3>
+                <pre><code class="python">async def anyhandler(request):
+    nickname = request.GET['nickname']   # obiekt podobny do dict'a, parametry z URLa
+    room_name = request.POST['name']     # obiekt podobny do dict'a, parametry z ciała w żądaniu POST</code></pre>
+                <h3>Testowanie żądań HTTP z pytest-aiohttp</h3>
+                <pre><code class="python">async def test_http_methods(test_client):
+    client = await test_client(app)
+    # types of requests used in this workshop
+    response = await client.get('/')
+    another_response = await client.post('/', data={'name': 'name of the room'})
+
+    assert response.status == 200
+    text = await response.text()
+    json = await another_response.json()
+</code></pre>
+                dodać niedestruktywne odświeżanie listy pokojow w selekcie i liście pokoi
             </div>
         </div>
 
@@ -112,7 +176,7 @@ websocket connection closed
                 <p>W pierwszej części zajmiemy się oprogramowaniem pokoju ogólnego - miejsca, gdzie każdy z uczestnikow czatu może się udzielać i czytać przychodzące wiadomości.</p>
                 <p>Zanim zaczniemy implementację, zapoznajmy się z dostarczonymi plikami projektu.</p>
                 <pre><code class="bash">Otwórz plik index.html</code></pre>
-                <p>W tym pliku mamy zaimplementowaną część frontendową naszej aplikacji. Ta część jest dostarczona przez organizatora warsztatów, nie powinno być potrzeby nic tutaj zmieniać. Zawiera podstawą logikę obsługi WebSocketu, odbieranie i wysyłanie wiadomości.</p>
+                <p>W tym pliku mamy zaimplementowaną część frontendową naszej aplikacji. Zawiera logikę obsługi WebSocketu, odbieranie i wysyłanie wiadomości. Ta część jest dostarczona w całości przez organizatora warsztatów. Nie ma żadnej potrzeby zmieniania tu czegokolwiek podczas trwania warsztatów. <b>Poza tym, jest to kod tylko-do-zapisu</b>, więc nie poleca się dogłębnie go analizować ;)</p>
                 <pre><code class="bash">Otwórz plik app.py</code></pre>
                 <p>Tutaj znajduje się główny kod aplikacji. W trakcie warsztatów szczególnie będzie nas interesować funkcja <em>websocket_handler</em>, w której będzie następować implementacja większości potrzebnych nam rzeczy:
                 <pre><code class="python">async def websocket_handler(request):
@@ -136,52 +200,61 @@ websocket connection closed
     return ws</code></pre>
                 <p>Pozostała część kodu w pliku <em>app.py</em> zawiera kod inicjalizujący aiohttp i wystawiający kilka dodatkowych endpointów:</p>
                 <pre><code class="python">async def index(request):
-    return web.FileResponse('./index.html')  # główna strona chatu
+    return web.FileResponse('./index.html')  # zwraca główny plik index.html z kodem frontendowym
 
 
 async def css(request):
-    return web.FileResponse('./static/style.css')  # arkusz styli
+    return web.FileResponse('./static/style.css')  # arkusz styli .css
 
 
 async def reconnecting_websocket(request):
-    return web.FileResponse('./static/reconnecting-websocket.min.js')  # biblioteka do websocket z automatycznym odnawianiem połączenia
+    # biblioteka websocket ze wsparciem automatycznego wznawiania zerwanych połączeń
+    return web.FileResponse('./static/reconnecting-websocket.min.js')
 
 
 async def members(request):
-    return web.Response(text='[]')  # lista uczestnikow
+    return web.json_response(text='[]')  # lista uczestników
 
 
 async def rooms(request):
-    return web.Response(text='[]')  # lista pokoi
+    return web.json_response(text='[]')  # lista pokoi
 
 
-app = web.Application()
-app.router.add_get('/', index)
-app.router.add_get('/members', members)
-app.router.add_get('/rooms', rooms)
-app.router.add_get('/style.css', css)
-app.router.add_get('/reconnecting-websocket.min.js', reconnecting_websocket)
-app.router.add_get('/ws', websocket_handler)
+def create_app(loop=None):  # funkcja fabrykująca aplikację aiohttp
+    if loop is None:
+        loop = asyncio.get_event_loop()
+    app = web.Application(loop=loop)
+    app.router.add_get('/', index)
+    app.router.add_get('/members', members)
+    app.router.add_get('/rooms', rooms)
+    app.router.add_get('/style.css', css)
+    app.router.add_get('/reconnecting-websocket.min.js', reconnecting_websocket)
+    app.router.add_get('/ws', websocket_handler)
+    return app
+
 
 if __name__ == '__main__':
-    web.run_app(app, port=8080)</code></pre>
+    app = create_app()
+    web.run_app(app, port=8080)  # wystartowanie aplikacji na porcie 8080</code></pre>
                 <p>Aby wystartować aplikację, wykonaj polecenie:</p>
                 <pre><code class="bash">python app.py</code></pre>
                 <p>Gdy otworzysz w przeglądarce <a href="http://127.0.0.1:8080/">http://127.0.0.1:8080/</a> powinieneś zobaczyć stronę chatu.</p>
                 <div class="alert alert-danger" role="alert"><b>Uwaga</b>: Aplikacja domyślnie działa na porcie 8080. Jeżeli z jakiegoś powodu nie chcesz na nim jej uruchamiać, możesz go zmienić na końcu plików <b>app.py</b> i <b>index.html</b>.</div>
                 <p>Ostatni z plików dostarczonych z projektem to <em>tests.py</em></p>
-                <pre><code class="python">from .app import app
+                <pre><code class="python">from .app import create_app
 
 
-async def test_receives_sent_message(test_client):  # test_client jest 'magicznie' przekazywanym parametrem. pytest o to dba
-    client = await test_client(app)  # tworzymy klienta testowego
-    connection = await client.ws_connect('/ws')  # nawiązujemy połączenie websocket
+async def test_receives_sent_message(test_client):
+    # parametr test_client jest 'magicznie' przekazywany do funkcji testującej
+    # załatwia to pytest dzięki mechanizmowi fikstur
+    client = await test_client(create_app)  # tworzymy klienta testowego
+    connection = await client.ws_connect('/ws?nickname=JohnDoe')  # nawiązujemy połączenie websocket
 
     message = 'Hello, world!'
-    await connection.send_str(message)  # wysyłamy tekstem 'Hello, world!'
-    response = await connection.receive_str()  # odbieramy tekst jako odpowiedź
+    await connection.send_json({'message': message, 'from': 'JohnDoe'})  # wysyłamy wiadomość 'Hello, world!' jako JohnDoe
+    response = await connection.receive_json()  # odbieramy odpowiedź jako JSON - dostajemy na wyjściu słownik
 
-    assert response == message  # sprawdzamy, czy serwer odpowiedział nam oczekiwanym tekstem</code></pre>
+    assert response['message'] == message  # sprawdzamy, czy zawartość się zgadza</code></pre>
                 <p>Jak łatwo zauważyć z testu, oczekujemy że serwer będzie nam zawsze odsyłał wysyłaną przez nas wiadomość. To nasze pierwsze zadanie.</p>
                 <div class="alert alert-success" role="alert">
                     <h4>Zadanie 1.1 - obsługa przychodzącej wiadomości</h4>
@@ -353,7 +426,7 @@ name=NAZWA_POKOJU</code></pre>
                             <li>Połączenie B jest nawiązane
                             <li>Połączenie A zakłada pokój
                             <li>Połączenie A wysyła wiadomość na nowo założony pokój
-                            <li>Połączenie A odbiera wysłaną wiadomość wiadomość
+                            <li>Połączenie A odbiera wysłaną wiadomość
                             <li>Połączenie B nie dostaje wiadomości
                         </ul>
                       </div>
@@ -370,25 +443,34 @@ name=NAZWA_POKOJU</code></pre>
                 <p><b>Frontend w pełni obsługuje to pole.</b></p>
                 <div class="alert alert-success" role="alert">
                     <h4>Zadanie 2.6 - do wiadomości wysłanych w ramach pokoju dodaj informację skąd dana wiadomość pochodzi</h4>
-                    <p></p>
+                    <p>Rezultat powinien być widoczny na frontendzie obok nicku osoby, która wysłała wiadomość.
+                    <br>Testy powinny sprawdzać obecność wszystkich trzech potrzebnych na tym etapie pól.</p>
                 </div>
 
+                <p>Do kompletności funkcjonalności pokoi brakuje nam już tylko możliwości opuszczenia konwersacji.</p>
                 <div class="alert alert-success" role="alert">
                     <h4>Zadanie 2.7 - implementacja opuszczania pokoju</h4>
-                    <p>także w przypadku rozłączenia połączenia websocket</p>
+                    <p>Podstawową sprawą jest obsłużyć żądanie użytkownika, które jest inicjowane kliknięciem odpowiedniego przycisku w interfejsie.</p>
+                    <p style="text-align: center; margin: 30px 0;"><img src="res/leaveroom.png" width="50%" height="50%"></p>
+                    <p>Frontend w reakcji na kliknięcie przycisku z 'X' wysyła na backend żądanie <code>POST /leave-room?nickname=NICK</code> z jednym parametrem w POST <code>name</code> - nazwą pokoju z którego dany użytkownik chce wyjść.</p>
+                    <p>Drugim przypadkiem do obsłużenia jest rozłączenia połączenia websocket. Tę sytuację całkiem łatwo otestować - wystarczy wejść do pokoju, zakończyć połączenie</p>
+                    <pre><code class="python">await connection.close()</code></pre>
+                    <p>i sprawdzić, czy użytkownik nadal jest w pokoju.</p>
                 </div>
 
+                <p>W zasadzie mamy kompletną funkcjonalność pokojów. Nie możemy jednak pozwolić by nieużywane pokoje zajmowały pamięć i obciążały nasz czat. </p>
                 <div class="alert alert-warning" role="alert">
                     <h4>Zadanie 2.8 - automatyczne usuwanie pustego pokoju</h4>
-                    <p></p>
+                    <p>Sprawa jest relatywnie prosta. Każdy pokój wie o dodawaniu i usuwaniu z niego uczestników. Musi też wiedzieć kto jest w pokoju w danej chwili ze względu na implementację wysyłania wiadomości wszystkim obecnym
+                    więc powinniśmy też łatwo wykryć moment, gdy pokój opuszcza ostatnia osoba.</p>
                 </div>
 
                 <div class="alert alert-danger" role="alert">
                     <h4>Zadanie 2.9 - automatyczne usuwanie pustego pokoju po jakimś czasie</h4>
-                    <p>Kasowanie pustych pokoi od razu może być momentami zbyt agresywne. Zamiast tego podejdźmy do problemu poprzez usuwanie pustych pokojów po powiedzmy 5 sekundach od wyjścia ostatniej osoby.</p>
+                    <p>Kasowanie pustych pokoi od razu może być momentami zbyt agresywne. Zamiast tego podejdźmy do problemu poprzez usuwanie pustych pokojów po powiedzmy 15 sekundach od wyjścia ostatniej osoby.</p>
                     <p><code>asyncio</code> posiada mechanizmy planowania zadań po jakimś czasie. Ich proste wykorzystanie:</p>
                     <pre><code class="python">loop = asyncio.get_event_loop()
-def callback(arg):
+def callback(arg):  # zwróć uwagę na brak 'async'
     print('hello {}!'.format(arg))
     loop.stop()  # dwa polecenia zatrzymują i zamykają pętlę zdarzeń
     loop.close()
@@ -399,211 +481,20 @@ loop.run_forever()</code></pre>
                     <p>Należy oczywiście zabezpieczyć się przed sytuacją, w której uczestnicy dołączają do pokoju który za chwilę zostanie usunięty.</p>
                 </div>
 
-                <h1>POMYSŁ: pom/cze - usuwanie pokoju po jakimś czasie.</h1>
-
-                <h3>Zadanie 2.1</h3>
-                <p>Testujemy klasę <code>AuthService</code> z jedną metodą publiczną <code>authenticate</code> - przyjmuje login i hasło. Ma zwracać <code>True</code> jezeli dane sa poprawne, w przeciwnym wypadku <code>False</code>. Metoda ma też skutek uboczny - korzysta z <code>user_logged_in</code> obiektu klasy DummyEventBroker do rozesłania zdarzenia o pomyślnej autoryzacji.</p>
-                <p>Uruchomienie pliku 1-deps.py powinno poskutkować FAILem:</p>
-                <pre><code class="python">Es
-======================================================================
-ERROR: test_auth_service_existing_user (__main__.CoupledTest)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "1-deps.py", line 54, in test_auth_service_existing_user
-    result = service.authenticate('jacek', 'dubilas')
-  File "1-deps.py", line 30, in authenticate
-    user = self._adapter.fetch_user_for_credentials(login, password)
-  File "1-deps.py", line 19, in fetch_user_for_credentials
-    return session.query(User).filter_by(login=login, password=password).one()
-  File "/Users/spb/Projects/pycon/workshop-python/ve/lib/python3.5/site-packages/sqlalchemy/orm/query.py", line 2479, in one
-    raise orm_exc.NoResultFound("No row was found for one()")
-sqlalchemy.orm.exc.NoResultFound: No row was found for one()
-
-----------------------------------------------------------------------
-Ran 2 tests in 0.005s
-
-FAILED (errors=1, skipped=1)</code></pre>
-                <p>Powodem jest to, że <code>AuthService</code> korzysta z <code>AuthDBAdapter</code>, który z kolei odwołuje się do bazy danych, gdzie oczywiście nie ma użytkownika, którego dane wpisaliśmy w teście. Nie jest to więc test jednostkowy - do działania wymaga bazy danych.</p>
-                <div class="alert alert-info"><b>Polecenie</b>: zastąp instancję <code>AuthDBAdapter</code> wykorzystywaną do inicjalizacji obiektu klasy <code>AuthService</code> korzystając z biblioteki mock. Spraw, by test przechodził dla podanych danych autoryzacyjnych.</div>
-                <p>Przykładowe użycie biblioteki mock:</p>
-                <pre><code class="python">&gt;&gt;&gt; import mock
-&gt;&gt;&gt; m = mock.Mock(method=mock.Mock(return_value=5))
-&gt;&gt;&gt; m.method()
-5</code></pre>
-                <h3>Zadanie 2.2</h3>
-                <p>Mocki potrafią zastąpić wiele kłopotliwych zależności, ale potrafią też przysporzyć problemów, o czym autor przekonał się osobiście. Mniej oczywiste jest bowiem, że domyślnie:</p>
-                <pre><code class="python">&gt;&gt;&gt; import mock
-&gt;&gt;&gt; m = mock.Mock(method=mock.Mock(return_value=5))
-&gt;&gt;&gt; m.method()
-5
-&gt;&gt;&gt; m.surprise()
-&lt;Mock name='mock.surprise()' id='4422837024'&gt;
-&gt;&gt;&gt; bool(m.surprise()) # ?</code></pre>
-                <p>Wywołanie nieokreślonej jawnie metody na obiekcie klasy mock zwraca kolejnego mocka, który umieszczony np w instrukcji <code>if</code> będzie ewaluował do <code>True</code>.</p>
-                <div class="alert alert-info"><b>Polecenie</b>: w metodzie <code>authenticate</code> klasy <code>AuthService</code> zmień wywołanie metody <code>fetch_user_for_credentials</code> na inną, nieobecną w klasie <code>AuthDBAdapter</code>. Sprawdź, jak to wpłynie na wynik testu.</div>
-                <h3>Zadanie 2.3</h3>
-                <p>Istnieje niezerowe prawdopodobieństwo, że zastepowanie zależności obiektami klasy <code>Mock</code> doprowadzi do pułapki false-positive (pozytywny wynik testu mimo występowania błędu). Mając wykonane poprzednie zadanie, pozbądź się tego problemu. Sprawdź w dokumentacji unittest.mock (podlinkowana w sekcji "Więcej" tej części szkolenia) czym są <code>spec</code> i <code>autospec</code>.</p>
-                <div class="alert alert-info"><b>Polecenie</b>: użyj <code>spec</code> podczas tworzenia obiektu Mock, by zapobiec pułapce false-positive.</div>
-                <h3>Zadanie 2.4</h3>
-                <p>Wszystko pięknie, ale... osoby znające SOLID pewnie rwią włosy z głowy patrząc na <code>AuthService</code>, która ma więcej niż jedną odpowiedzialność - waliduje dane wejściowe w sposób kompletnie nie związany z samym mechanizmem uwierzytelniania. Dochodzi dylemat - czy testować metodę prywatną?</p>
-                <div class="alert alert-info"><b>Polecenie</b>: napisz test(y) dla klasy walidującej zestaw danych używanych do uwierzytelniania - (login, hasło). Wydziel metodę _validate do tej klasy. Spraw, by testy przeszły.</div>
-                <b>Więcej</b>:<ul>
-                    <li><a href="https://docs.python.org/3/library/unittest.mock.html">https://docs.python.org/3/library/unittest.mock.html</a></li>
-                    <li><a href="http://engineeringblog.yelp.com/2015/02/assert_called_once-threat-or-menace.html">http://engineeringblog.yelp.com/2015/02/assert_called_once-threat-or-menace.html</a></li>
-                </ul>
-            </div>
-        </div>
-        <div class="panel panel-default">
-            <div class="panel-heading">Część trzecia - krok w stronę testów integracyjnych, silny związek aplikacji z DB</div>
-            <div class="panel-body">
-                <pre><code class="bash">Przejdź do katalogu 2-deps.
-Otwórz plik 2-deps.py</code></pre>
-                <p>W prawdziwym świecie częściej mamy do czynienia z aplikacjami, które są bardzo mocno związane z jakimś systemem persystencji danych - najczęściej relacyjną bazą danych, do tego interakcję z nią prowadzimy za pomocą ORMa. Tego typu silne związki są przesłanką do tego, by napisać test korzystający z bazy danych - przynajmniej dopóki nie zrefaktoryzujemy danego komponentu aplikacji.</p>
-                <p>Nie będą to już oczywiście testy jednostkowe. Spróbujmy jednak się do nich zbliżyć poprzez parę zabiegów. Po pierwsze, potrzebne dane w bazie tworzymy na wstępie, w metodzie setUp.</p>
-                <div class="alert alert-warning">Istotną sprawą jest ochrona przed potencjalnymi śmieciami - czyszczenie danych przeprowadzamy zarówno przed, jak i po każdym teście.</div>
-                <h3>Zadanie 3.1</h3>
-                <p>Tym razem wszystko jest już przygotowane, Twoim zadaniem jest zaimplementować testowaną funkcję.</p>
-                <div class="alert alert-info"><b>Polecenie</b>: Zaimplementuj <code>copy_roles</code> tak, by przechodził test przygotowany w 2-deps.py.</div>
+                <p>Cóż nam jednak po pokojach, w których rozmawiać nie mogą uczestnicy poza założycielem?</p>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.10 - dołączanie do pokoi</h4>
+                    <p>Zaimplementuj dołączanie do pokoju.</p>
+                    <p>Frontend po kliknięciu pokoju na liście wysyła żądanie <code>POST join-room?nickname=NICK</code> z polem <code>name</code> żądania ustawionym na nazwę pokoju</p>
+                </div>
             </div>
         </div>
 
         <div class="panel panel-default">
-            <div class="panel-heading">Część czwarta - przedstawienie przykładowej aplikacji</div>
-            <div class="panel-body">
-                <pre><code class="bash">Przejdź do katalogu 3-app</code></pre>
-                <p>Do końca szkolenia będziemy się zajmować testami wokół przykładowej aplikacji. Jest to usługa z RESTowym interfejsem do rezerwacji pokojów hotelowych, która udostępnia dwa zasoby:</p><ul>
-                    <li>wolne pokoje</li>
-                    <li>rezerwacje</li>
-                </ul>
-                <p>Jeden pokój może mieć wiele rezerwacji, ale tylko jedną nieanulowaną w tym czasie. Utworzenie nowej Rezerwacji wiąże się z zajęciem Pokoju - znika z listy wolnych. Flow korzystania z usługi:</p>
-                <pre><code>GET /free_rooms  # ( 1 )
-POST /free_rooms  # ( 2 )</code></pre>              <ol>
-                <li>pobranie listy wolnych pokoi, wybór ID jednego z nich</li>
-                <li>zgłoszenie nowej rezerwacji składającej się z ID pokoju rezerwowanego pokoju, dat przybycia, wyjazdu oraz imiona i nazwiska rezerwującego</li>
-            </ol>
-            <p>Stworzony zasób Rezerwacji można później usunąć korzystając z metody DELETE. Powoduje ona tylko ustawienie znacznika czasu na polu timestamp <code>cancelled_at</code>. Pozostaje przywiązana do danego pokoju, ale już nie blokuje jego ponownej rezerwacji.</p>
-            <p>Punkt wejścia znajduje się w pliku app.py. Całość działa w oparciu o Flaska i SQLAlchemy korzystającego z bazy SQLite in memory. Posiada kilka zestawów testów. Kontrolnie, odpal je wszystkie po kolei, będąc w katalogu 3-app:</p>
-            <pre><code class="bash">python unit_tests.py
-unit_tests.py:25: DeprecationWarning: Please use assertEqual instead.
-  self.assertEquals(expected_price, self.reservation.calculate_price())
-..
-----------------------------------------------------------------------
-Ran 2 tests in 0.004s
-
-OK</code></pre>
-            <pre><code class="bash">python integration_tests.py
-.
-----------------------------------------------------------------------
-Ran 1 test in 0.076s
-OK</code></pre>
-<pre><code>python e2e_tests.py
-........
-----------------------------------------------------------------------
-Ran 8 tests in 0.084s
-
-OK</code></pre>
-            <p>Mamy jeszcze zestaw testów akceptacyjnych napisany w behave, ale do niego przejdziemy w ostatniej części szkolenia.</p>
-            <h3>Zadanie 4.1</h3>
-            <div class="alert-info alert"><b>Polecenie</b>: Zapoznaj się z przepływem sterowania (prześledź kolejne wywołania w kodzie) przy obsłudze żądania POST /reservations obsługiwanej przez funkcję <code>make_reservation</code>. Zwróć uwagę na warstwy aplikacji, szczególnie na dwa różne rodzaje walidacji i różnice co do otoczenia, w jakim się znajdują.</div>
-            <b>Więcej</b>:<ul>
-                <li><a href="http://flask.pocoo.org/docs/0.10/testing/">http://flask.pocoo.org/docs/0.10/testing/</a></li>
-            </ul>
-            </div>
-        </div>
-
-        <div class="panel panel-default">
-            <div class="panel-heading">Część piąta - testy integracyjne ze światem zewnętrznym</div>
-            <div class="panel-body">
-                <p>Otwórz pliki</p>
-                <pre><code class="bash">3-app/charge.py
-3-app/integration_tests.py</code></pre>
-                <p>Mamy tu do czynienia z kawałkiem interfejsu do zewnętrznej usługi - naliczania opłat na podstawie numeru karty kredytowej, kodu bezpieczeństwa i dedykowanego dla naszego klienta <i>access_tokenu</i>.</p>
-                <p>Docelowo powinien zostać zintegrowany z przykładową aplikacją jako część procesu potwierdzania rezerwacji poprzez dokonanie opłaty za pokój. Po utworzeniu Rezerwacji powinno dojść do wysłania kolejnego żądania metodą PUT z danymi do karty płatniczej. Na razie skupmy się na samej klasie <code>ChargeExternalService</code> stanowiącej nasz punkt styku ze światem zewnętrznym.</p>
-                <div class="alert-warning alert">Proszę nie wysyłać danych prawdziwych kart płatniczych :)</div>
-                <h3>Zadanie 5.1</h3>
-                <div class="alert alert-info"><b>Polecenie</b>: Napisz test z użyciem prawidłowego tokena. Ponieważ nie chcesz podawać prawdziwych danych, wykorzystaj te istniejące...lub zajrzyj do pliku <code>extra/cardno.py</code>, gdzie znajduje się kod źródłowy usługi uruchomionej w chmurze. Pamiętaj by sprawdzić wynik funkcji - test bez asercji to grzech główny testowania.</div>
-                <p class="hint">Testy integracyjne ze światem zewnętrznym potrafią trwać niemiłosiernie długo, a poza tym mogą powodować różne niepożądane skutki uboczne, jak opróżnienie konta bankowego lub uruchomienie wyrzutni pocisków balistycznych, jeżeli się z takową integrujesz. Warto wówczas rozważyć napisanie fake'owej mini-aplikacji, która będzie odpowiadać zgodnie ze specyfikacją docelowej usługi.</p>
-            </div>
-        </div>
-
-
-        <div class="panel panel-default">
-            <div class="panel-heading">Część szósta - Behaviour Driven Development</div>
-            <div class="panel-body">
-            <p>Przejdź do katalogu</p>
-            <pre><code class="bash">3-app</code></pre><p>Otwórz plik</p>
-                <pre><code class="bash">features/making_reservations.feature</code></pre>
-                <p>Przyjrzyjmy się notacji zapisu testów BDD:</p>
-                <pre><code class="gherkin">Feature: One can make a reservation of a room specifying arrival and departure date
-
- Background: Assuming following system state
-    Given There are rooms
-     | id | floor | number | price_per_day |
-     |  8 |     2 |    200 |           100 |
-     |  9 |     2 |    201 |           100 |
-
-Scenario: One can make a reservation of free rooms
- Given Room with ID "8" is available
-  When "John Doe" reserves room "8" from "2015-10-10" to "2015-10-16"
-  Then Reservation for room "8" is made
-   And Room with ID "8" is not available
-
-Scenario: One can cancel reservation a week before start
- Given Today is "2015-10-02"
-  When "John Doe" reserves room "9" from "2015-10-10" to "2015-10-16"
-   And One cancells reservation
-  Then Room with ID "9" is available</code></pre>
-  <p>To, co od razu rzuca się w oczy to notacja i język użyty w definicjach kroków. Ma on być zrozumiały także dla ludzi nieprogramujących, którzy spisują specyfikacje lub historyjki użytkownika. W tym zestawie mamy dwa scenariusze rezerwacji - ścieżkę podstawową całej funkcjonalności rezerwacji, tj zajęcie wolnego pokoju, a także ścieżkę podstawową anulowania rezerwacji.</p>
-  <p>W tym konkretnym kontekście użycia będziemy mówić o testowaniu akceptacyjnym aplikacji - czy robi to, czego oczekuje od niej biznes. Nasze testy będą zaimplementowane na warstwie serwisów/CommandHandlerów (<code>3-app/domain/services.py</code>). Pomijamy w ten sposób Flaska i całe HTTP, a skupiamy się na odseparowanej maksymalnie od webowego frameworka logice biznesowej.</p>
-  <p>W innych przypadkach aplikacji webowych, które korzystają z interfejsu użytkownika w postaci klasycznej strony w HTML&amp;JavaScript, testy BDD są implementowane jako testy End2End - przy pomocy Selenium lub innego webdrivera zestaw testów wchodzi w interakcję ze stroną sprawdzając, czy cała aplikacja 'zachowuje' się tak, jak jest to oczekiwane. Zdaniem autora takie podejście może się sprawdzić tylko przy prostych aplikacjach. W przypadku gdy ma się do czynienia z czymś więcej niż zaawansowaną przeglądarką do bazy danych z ładnym interfejsem, większy sens ma rozbicie monolitu na osobne aplikacje frontendową/backendową i testowanie na poziomie CommandHandlerów, udsotępniających operacje domenowe.</p>
-  <p>Kolejny krok - to odseparowanie całkowicie testów akceptacyjnych od mechanizmów persystencji, jak bazy danych. To zagadnienie jednak zdecydowania wykracza poza ramy tego warsztatu. Szukając odpowiedzi na pytanie "jak" warto zainteresować się DDD i przykładowo projektem <a href="https://github.com/isolate-org">Isolate</a> (Uwaga, PHP).</p>
-  <p>Będąc bardziej realistycznym, testy akceptacyjne w notacji BDD w tym projekcie wykorzystują bazę danych.</p>
-  <p>Porzucając polityczne dyskusje, odpalmy zestaw testów poprzez wydanie polecenia</p><pre><code>behave</code></pre><p> w katalogu <code>3-app/</code>. Naszym oczom ukazuje się wynik:</p><pre><code>Feature: One can make a reservation of a room specifying arrival and departure date # features/making_reservations.feature:1
-
-  Background: Assuming following system state  # features/making_reservations.feature:3
-
-  Scenario: One can make a reservation of free rooms                    # features/making_reservations.feature:9
-    Given There are rooms                                               # features/steps/making_reservations.py:11 0.001s
-      | id | floor | number | price_per_day |
-      | 8  | 2     | 200    | 100           |
-      | 9  | 2     | 201    | 100           |
-    Given Room with ID "8" is available                                 # features/steps/making_reservations.py:18 0.003s
-    When "John Doe" reserves room "8" from "2015-10-10" to "2015-10-16" # features/steps/making_reservations.py:24 0.004s
-    Then Reservation for room "8" is made                               # features/steps/making_reservations.py:41 0.000s
-    And Room with ID "8" is not available                               # features/steps/making_reservations.py:35 0.001s
-
-  Scenario: One can cancel reservation a week before start              # features/making_reservations.feature:15
-    Given There are rooms                                               # features/steps/making_reservations.py:11 0.001s
-      | id | floor | number | price_per_day |
-      | 8  | 2     | 200    | 100           |
-      | 9  | 2     | 201    | 100           |
-    Given Today is "2015-10-02"                                         # features/steps/making_reservations.py:46 -1294419.045s
-    When "John Doe" reserves room "9" from "2015-10-10" to "2015-10-16" # features/steps/making_reservations.py:24 0.000s
-    And One cancells reservation                                        # features/steps/making_reservations.py:52 0.000s
-    Then Room with ID "9" is available                                  # features/steps/making_reservations.py:56 0.000s
-
-1 feature passed, 0 failed, 0 skipped
-2 scenarios passed, 0 failed, 0 skipped
-10 steps passed, 0 failed, 0 skipped, 0 undefined
-Took -21573m20.965s</code></pre>
-<p>Szczególnie ważne jest rozróżnienie kroków - w BDD odpowiadają one dobrze znanemu schematowi widocznemu przy testach AAA - Arrange - Act - Assert, tu odpowiednio Given, When, Then. Given - tworzy warunki początkowe. When - wyzwala jakieś zdarzenie, akcję. Then - sprawdza rezultat.</p>
-    <h3>Zadanie 6.1</h3>
-    <p>BDD poza wartościami typu <a href="http://martinfowler.com/bliki/UbiquitousLanguage.html">UbiquitousLanguage</a> niesie ze sobą także fantastyczną z punktu widzenia programisty reużywalność kodu oraz łatwość tworzenia kolejnych scenariuszy.</p>
-    <p>Wracając na ziemię do rezerwacji pokojów - zwykle nie pozwala się odwołać rezerwacji w ostatniej chwili. Zaimplementujmy to.</p>
-    <div class="alert alert-info"><b>Polecenie</b>: Korzystając z przykładowych scenariuszy, dopisz kolejny, który uniemożliwi anulowanie rezerwacji 3 dni przed terminem przyjazdu.</div>
-  <p><b>Więcej</b>:</p><ul>
-      <li><a hef="http://pythonhosted.org/behave/">http://pythonhosted.org/behave/</a></li>
-      <li><a href="http://dannorth.net/whats-in-a-story/">http://dannorth.net/whats-in-a-story/</a></li>
-  </ul>
-            </div>
-
-        </div>
-
-        <div class="panel panel-default">
-            <div class="panel-heading">Część siódma - meta</div>
+            <div class="panel-heading">Część czwarta - info końcowe</div>
             <div class="panel-body">
                 <p>Kontakt do autora: <a href="https://twitter.com/EnforcerPL">@EnforcerPL</a></p>
-                <p>Wykorzystane projekty do stworzenia szkolenia:</p>
+                <p>Wykorzystane projekty do stworzenia instrukcji:</p>
                 <ul>
                     <li><a href="http://highlightjs.org/">highlightjs</a></li>
                     <li><a href="http://getbootstrap.com/">bootstrap 3</a></li>

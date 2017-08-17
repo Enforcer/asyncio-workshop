@@ -31,12 +31,29 @@ body {
 }
 
 #rooms-list {
-    height: 150px
+    padding-top: 15px;
+    height: 150px;
+    list-style-type: none;
+    padding-left: 0;
 }
 
-#rooms-list span, #rooms-list a {
-    display: inline-block;
-    padding: 7px;
+#rooms-list li {
+    position: relative;
+    line-height: 28px;
+    font-size: 14px;
+    height: 28px;
+    padding-left: 15px;
+}
+
+#rooms-list li:hover {
+    cursor: pointer;
+    background-color: rgba(0, 0, 0, 0.01);
+}
+
+#rooms-list button {
+    position: absolute;
+    right: 15px;
+    top: 3px;
 }
 
 #messages-panel {
