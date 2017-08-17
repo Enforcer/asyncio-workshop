@@ -127,31 +127,35 @@ websocket connection closed
     return ws</code></pre>
                 <p>Pozostała część kodu w pliku <em>app.py</em> zawiera kod inicjalizujący aiohttp i wystawiający kilka dodatkowych endpointów:</p>
                 <pre><code class="python">async def index(request):
-    return web.FileResponse('./index.html')
+    return web.FileResponse('./index.html')  # główna strona chatu
 
 
 async def css(request):
-    return web.FileResponse('./static/style.css')
+    return web.FileResponse('./static/style.css')  # arkusz styli
 
 
 async def reconnecting_websocket(request):
-    return web.FileResponse('./static/reconnecting-websocket.min.js')
+    return web.FileResponse('./static/reconnecting-websocket.min.js')  # biblioteka do websocket z automatycznym odnawianiem połączenia
 
 
 async def members(request):
-    return web.Response(text='[]')
+    return web.Response(text='[]')  # lista uczestnikow
+
+
+async def rooms(request):
+    return web.Response(text='[]')  # lista pokoi
 
 
 app = web.Application()
 app.router.add_get('/', index)
 app.router.add_get('/members', members)
+app.router.add_get('/rooms', rooms)
 app.router.add_get('/style.css', css)
 app.router.add_get('/reconnecting-websocket.min.js', reconnecting_websocket)
 app.router.add_get('/ws', websocket_handler)
 
 if __name__ == '__main__':
-    web.run_app(app, port=8080)
-</code></pre>
+    web.run_app(app, port=8080)</code></pre>
                 <p>Aby wystartować aplikację, wykonaj polecenie:</p>
                 <pre><code class="bash">python app.py</code></pre>
                 <p>Gdy otworzysz w przeglądarce <a href="http://127.0.0.1:8080/">http://127.0.0.1:8080/</a> powinieneś zobaczyć stronę chatu.</p>

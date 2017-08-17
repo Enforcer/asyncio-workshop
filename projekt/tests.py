@@ -7,6 +7,6 @@ async def test_receives_sent_message(test_client):
 
     message = 'Hello, world!'
     await connection.send_str(message)
-    response = await connection.receive_str()
+    response = await connection.receive_json()
 
-    assert response == message
+    assert response['message'] == message

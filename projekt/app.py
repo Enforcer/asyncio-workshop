@@ -17,7 +17,9 @@ async def websocket_handler(request):
 
         if msg.type == WSMsgType.TEXT:
             # msg.data - data received
-            await ws.send_str('response from a server')
+            await ws.send_json(
+                {'message': 'response from the server', 'from': 'anonymous'}
+            )
         elif msg.type == WSMsgType.ERROR:
             print('ws connection closed with exception %s' % ws.exception())
 
@@ -40,9 +42,14 @@ async def members(request):
     return web.Response(text='[]')
 
 
+async def rooms(request):
+    return web.Response(text='[]')
+
+
 app = web.Application()
 app.router.add_get('/', index)
 app.router.add_get('/members', members)
+app.router.add_get('/rooms', rooms)
 app.router.add_get('/style.css', css)
 app.router.add_get('/reconnecting-websocket.min.js', reconnecting_websocket)
 app.router.add_get('/ws', websocket_handler)

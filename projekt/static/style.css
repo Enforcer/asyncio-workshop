@@ -22,6 +22,10 @@ body {
 .message .datetime {
     font-size: smaller;
 }
+.message .message-from {
+    font-size: smaller;
+    float: right;
+}
 #members-list {
     height: 200px
 }

@@ -20,6 +20,16 @@
             </div>
             <div class="panel">
                 <h3>Pokoje</h3>
+                <div class="row">
+                    <form id="rooms-form">
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control" id="room-name-input" placeholder="nazwa">
+                        </div>
+                        <div class="col-sm-4">
+                            <button type="submit" class="btn btn-default">Załóż</button>
+                        </div>
+                    </form>
+                </div>
                 <ul id="rooms-list"></ul>
             </div>
         </div>
@@ -30,7 +40,7 @@
                 <input type="text" class="form-control" id="message-input" placeholder="wiadomość">
             </div>
             <div class="col-sm-4">
-                <button type="submit" class="btn btn-default" disabled="disabled">Wyślij</button>
+                <button type="submit" class="btn btn-default" disabled="disabled" id="message-send-btn">Wyślij</button>
             </div>
         </form>
     </div>
@@ -38,10 +48,11 @@
 <script src="/reconnecting-websocket.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var messageSendBtn = document.querySelector('button[type=submit]');
+    var messageSendBtn = document.getElementById('message-send-btn');
     var messageForm = document.getElementById('message-form');
     var messageBox = document.getElementById('message-input');
     var messagesPanel = document.getElementById('messages-panel');
+    var roomsForm = document.getElementById('rooms-form');
 
     var socket = new ReconnectingWebSocket(WS_URL, null, {debug: true, reconnectInterval: 3000});
     socket.onopen = function() {
@@ -55,11 +66,19 @@ document.addEventListener('DOMContentLoaded', function () {
         var newMessage = document.createElement('div');
         newMessage.className = 'alert alert-info message';
         var text = document.createElement('span');
-        text.innerText = message.data;
+        var received = JSON.parse(message.data);
+        text.innerText = received.message;
         var datetime = document.createElement('span');
         datetime.className = 'datetime';
         datetime.innerText = getFormattedTime();
+        var messageFrom = document.createElement('span');
+        messageFrom.className = 'message-from';
+        messageFrom.innerText = received.from;
+        if (received.room) {
+            messageFrom.innerText += ' < ' + received.room;
+        }
         newMessage.appendChild(datetime)
+        newMessage.appendChild(messageFrom);
         newMessage.appendChild(document.createElement('br'));
         newMessage.appendChild(text);
         messagesPanel.appendChild(newMessage);
@@ -83,7 +102,54 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('nickname-show').innerText = 'Twój nick to ' + nickname;
 
     setInterval(getMembersAndUpdateList, 3000);
+    setInterval(refreshRoomList, 3000);
+
+    roomsForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        addRoom();
+    });
 }, false);
+
+function addRoom() {
+    var roomNameInput = document.getElementById('room-name-input');
+    if (!roomNameInput.value) {
+        return;
+    }
+
+    var roomName = roomNameInput.value;
+    roomNameInput.value = '';
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'room', true);
+    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+    xhr.send(encodeURI('name=' + roomName));
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+            refreshRoomList();
+        }
+    };
+}
+
+function refreshRoomList() {
+    var roomsList = document.getElementById('rooms-list');
+    while (roomsList.firstChild) {
+        roomsList.removeChild(roomsList.firstChild);
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'rooms');
+    xhr.send(null);
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+            var rooms = JSON.parse(xhr.responseText);
+            rooms.forEach(function (room) {
+                var el = document.createElement('li');
+                el.innerText = room;
+                roomsList.appendChild(el);
+            });
+        }
+    };
+}
 
 function getMembersAndUpdateList() {
     var membersList = document.getElementById('members-list');
