@@ -76,6 +76,9 @@ document.addEventListener('DOMContentLoaded', function () {
         newMessage.className = 'alert alert-info message';
         var text = document.createElement('span');
         var received = JSON.parse(message.data);
+        if (received.from === nickname) {
+            newMessage.className = 'alert alert-self message';
+        }
         text.innerText = received.message;
         var datetime = document.createElement('span');
         datetime.className = 'datetime';
