@@ -239,7 +239,7 @@ if __name__ == '__main__':
     web.run_app(app, port=8080)  # wystartowanie aplikacji na porcie 8080</code></pre>
                 <p>Aby wystartować aplikację, wykonaj polecenie:</p>
                 <pre><code class="bash">python app.py</code></pre>
-                <p>Gdy otworzysz w przeglądarce <a href="http://127.0.0.1:8080/">http://127.0.0.1:8080/</a> powinieneś zobaczyć stronę chatu.</p>
+                <p>Gdy otworzysz w przeglądarce <a href="http://127.0.0.1:8080/">http://127.0.0.1:8080/</a> powinieneś zobaczyć stronę czatu.</p>
                 <div class="alert alert-danger" role="alert"><b>Uwaga</b>: Aplikacja domyślnie działa na porcie 8080. Jeżeli z jakiegoś powodu nie chcesz na nim jej uruchamiać, możesz go zmienić na końcu plików <b>app.py</b> i <b>index.html</b>.</div>
                 <p>Ostatni z plików dostarczonych z projektem to <em>tests.py</em></p>
                 <pre><code class="python">from .app import create_app
@@ -263,9 +263,9 @@ async def test_receives_sent_message(test_client):
                     <p>Spodziewany rezultat w przeglądarce jest taki, że po odebraniu wiadomości wyświetli się ona na liście konwersacji.</p>
                 </div>
                 <div class="alert alert-warning" role="alert">
-                    <b>Uwaga</b>: ten warsztat zakłada rozwijanie chatu pod ścisłą kontrolą testów, jednak jeżeli mają Cię poważnie spowalniać i spowodować, że mniej wyniesiesz z ćwiczeń możesz pomijać ich pisanie. Mimo wszystko gorąco polecam trzymać się TDD :)
+                    <b>Uwaga</b>: ten warsztat zakłada rozwijanie czatu pod ścisłą kontrolą testów, jednak jeżeli mają Cię poważnie spowalniać i spowodować, że mniej wyniesiesz z ćwiczeń możesz pomijać ich pisanie. Mimo wszystko gorąco polecam trzymać się TDD :)
                 </div>
-                <p>Po zrealizowaniu zadania 1.1 wydawać by się mogło, że mamy działającą aplikację i już z powodzeniem możemy na niej rozmawiać z innymi ludźmi. Tak się jednak nie dzieje, bowiem gdy otworzymy stronę chatu w drugim oknie przeglądarki (<b>otworzymy kolejną sesję websocket</b>), to nie zobaczymy wiadomości wysyłanych przez innych uczestników!</p>
+                <p>Po zrealizowaniu zadania 1.1 wydawać by się mogło, że mamy działającą aplikację i już z powodzeniem możemy na niej rozmawiać z innymi ludźmi. Tak się jednak nie dzieje, bowiem gdy otworzymy stronę czatu w drugim oknie przeglądarki (<b>otworzymy kolejną sesję websocket</b>), to nie zobaczymy wiadomości wysyłanych przez innych uczestników!</p>
                 <p>Powód jest oczywisty - nasz <em>websocket_handler</em> działa tylko w ramach jednego połączenia. Musimy gdzieś przechować listę obecnych klientów połączonych z adresem <em>/ws</em> i wysyłać wiadomość do wszystkich 'obecnych'.</p>
                 <div class="alert alert-warning" role="alert">
                     <h4>Zadanie 1.2a - wiadomości do pozostałych uczestników</h4>
@@ -289,7 +289,7 @@ async def test_receives_sent_message(test_client):
                     <p>Zaimplementuj wysyłanie wiadomości do wszystkich podłączonych uczestników czatu.</p>
                     <p>Wypadałoby też, żeby uczestnicy wiedzieli z kim mają do czynienia - w danych wysyłanych poprawnie uzupełniaj pole 'from' nickiem użytkownika</p>
                     <pre><code class="python">{'message': 'response from the server', <mark>'from': 'anonymous'</mark>}</code></pre>
-                    <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-2" aria-expanded="false" aria-controls="hint-2">Podpowiedź: gdzie przechować uczestników chatu?</a>
+                    <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-2" aria-expanded="false" aria-controls="hint-2">Podpowiedź: gdzie przechować uczestników czatu?</a>
                     <div class="collapse" id="hint-2">
                       <div class="well">
                         Najprościej jest utworzyć listę globalnie w module:
@@ -311,9 +311,9 @@ async def websocket_handler(request):
                       </div>
                     </div>
                 </div>
-                <p>Być może podczas implementacji poprzedniego zadania doszło do sytuacji, że podczas próby wysłania wiadomości do uczestnika chatu nie był on już połączony przy pomocy websocketa. W takiej sytuacji dostaniemy wyjątek. Pora więc nie tylko oznaczyć uczestnikow czatu jako obecnych, ale też zadbać o to by byli usuwani z listy po rozłączeniu. Nie możemy też zapominać o obsłudze błędów przy wysyłaniu wiadomości!</p>
+                <p>Być może podczas implementacji poprzedniego zadania doszło do sytuacji, że podczas próby wysłania wiadomości do uczestnika czatu nie był on już połączony przy pomocy websocketa. W takiej sytuacji dostaniemy wyjątek. Pora więc nie tylko oznaczyć uczestnikow czatu jako obecnych, ale też zadbać o to by byli usuwani z listy po rozłączeniu. Nie możemy też zapominać o obsłudze błędów przy wysyłaniu wiadomości!</p>
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 1.3 - obsługa rozłączeń z chatu</h4>
+                    <h4>Zadanie 1.3 - obsługa rozłączeń z czatu</h4>
                     <p>Zadbaj o to, by uczestnicy byli usuwani po rozłączeniu z websocketem, tak aby nie podejmowano prób wysłania im wiadomości, które z oczywistych powodów nie mogą się udać. Potrzebna będzie też obsługa wyjątków przy nieudanej próbie wysyłki wiadomości.</p>
                 </div>
                 <p>Obsługa obecności "wewnątrz" aplikacji to jedno, ale pozostaje jeszcze kwestia przyjaznej dla uczestników prezentacji listy obecności. Obecnie w <em>index.html</em> zaimplementowane jest cykliczne zapytanie, które co 3 sekundy wysyła zapytanie na backend pod url <em>GET /members</em> i oczekuje w odpowiedzi prostej listy z ksywkami obecnych na czacie osób. Dane w odpowiedzi mają być w następującym formacie:</p>
@@ -322,15 +322,15 @@ async def websocket_handler(request):
     'kswyka2',
     'kswyka_n'
 ]</code></pre>
-                <p>Ksywka naszego uczestnika jest wysyłana w pierwotnym requeście na url /ws jako parametr 'nickname'</p>
+                <p>Ksywka naszego uczestnika jest wysyłana w pierwotnym requeście na url <code>/ws</code> jako parametr 'nickname'</p>
                 <pre><code class="python">request.GET['nickname']</code></pre>
                 <div class="alert alert-success" role="alert">
                     <h4>Zadanie 1.4 - zaimplementuj endpoint dla listy obecności</h4>
-                    <p>Aby zrealizować to zadanie trzeba będzie wzbogacić strukturę danych w której trzymasz podłączonych uczestników o ich ksywki wysyłane w nagłówku <em>X-Nickname</em></p>
+                    <p>Aby zrealizować to zadanie trzeba będzie wzbogacić strukturę danych w której trzymasz podłączonych uczestników o ich ksywki wysyłane w query stringu</p>
                 </div>
-                <p>Na tym etapie mamy już całkiem nieźle funkcjonującą aplikację do chatowania. Jest jeszcze jedna rzecz, którą warto byłoby mieć - trzymanie historii dla przyszłych uczestników, którzy dołączą do pokoju. Powiedzmy, że nie interesują nas wszystkie wiadomości wysłane od początku działania aplikacji. Powinny wystarczyć nam wiadomości z powiedzmy ostatnich 10 minut od dołączenia.</p>
+                <p>Na tym etapie mamy już całkiem nieźle funkcjonującą aplikację do czatowania. Jest jeszcze jedna rzecz, którą warto byłoby mieć - trzymanie historii dla przyszłych uczestników, którzy dołączą do pokoju. Powiedzmy, że nie interesują nas wszystkie wiadomości wysłane od początku działania aplikacji. Powinny wystarczyć nam wiadomości z powiedzmy ostatnich 10 minut od dołączenia.</p>
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 1.5a - prezentuj nowym uczestnikom chatu archiwalne wiadomości sprzed maksymalnie 10 minut</h4>
+                    <h4>Zadanie 1.5a - prezentuj nowym uczestnikom czatu archiwalne wiadomości sprzed maksymalnie 10 minut</h4>
                     <p>Proste trzymanie wiadomości w pamięci aplikacji powinno wystarczyć. Jeżeli brak Ci pomysłu na zwracanie wiadomości tylko sprzed 10 minut - możesz pominąć to wymaganie i zawsze zwracać całą historię.</p>
                 </div>
                 <div class="alert alert-warning" role="alert">
@@ -340,7 +340,7 @@ async def websocket_handler(request):
 
                 <div class="alert alert-danger" role="alert">
                     <h4>Zadanie 1.5c - nie blokuj całego czatu przez jednego wolnego klienta</h4>
-                    <p>Najprawdopodobniej zadanie 1.2 zostało zaimplementowane w sposób, który wysyła nowe wiadomości po kolei do obecnych na czacie uczestników. Spróbuj przerobić kod tak, by wysyłać wiadomości do wszystkich uczestników 'jednocześnie', tak by jeden powolny klient nienadążający z odbieraniem danych nie blokował całej aplikacji chatowej.</p>
+                    <p>Najprawdopodobniej zadanie 1.2 zostało zaimplementowane w sposób, który wysyła nowe wiadomości po kolei do obecnych na czacie uczestników. Spróbuj przerobić kod tak, by wysyłać wiadomości do wszystkich uczestników 'jednocześnie', tak by jeden powolny klient nienadążający z odbieraniem danych nie blokował całej aplikacji czatowej.</p>
                     <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-3" aria-expanded="false" aria-controls="hint-3">Podpowiedź: jak podejść do problemu?</a>
                     <div class="collapse" id="hint-3">
                       <div class="well">
@@ -361,11 +361,11 @@ Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem kt�
                 <p>Do tej pory wszystko było względnie proste i nieskomplikowane - mamy czat ogólny gdzie każdy uczestnik widzi wszystko to, co piszą pozostali uczestnicy. Wprowadźmy kolejny niezbędny element każdego czatu - prywatne pokoje.</p>
                 <p>Pokój jest 'pojemnikiem' na uczestników czatu. W danym pokoju może przebywać od 1 do potencjalnie nieograniczonej ilości uczestników jednocześnie (na tyle, na ile wystarczy zasobów komputera). Podobnie jeden uczestnik może przebywać we wszystkich pokojach czatowych jakie są.<br>
                 Pokój zapewnia powiązanie pomiędzy uczestnikami czatu, porządkuje konwersację i dba o to, by każdy w pokoju wiedział o wszystkim co zostaje napisane w jego ramach.</p>
-                <p>Pokój chatowy to bardzo wygodna i przydatna abstrakcja. Za jego pomocą można bardzo łatwo zamodelować chat ogólny - będzie to pokój w którym są po prostu wszyscy. W taki sam sposób można zamodelować prywatne rozmowy między dwoma uczestnikami - po prostu tworzymy pokój z dokładnie dwoma uczestnikami.</p>
+                <p>Pokój czatowy to bardzo wygodna i przydatna abstrakcja. Za jego pomocą można bardzo łatwo zamodelować czat ogólny - będzie to pokój w którym są po prostu wszyscy. W taki sam sposób można zamodelować prywatne rozmowy między dwoma uczestnikami - po prostu tworzymy pokój z dokładnie dwoma uczestnikami.</p>
                 <p style="text-align: center; margin: 30px 0;">
                     <img src="res/chats.png">
                 </p>
-                <p>Dla zachowania porządku przyjmijmy zasadę, że puste pokoje chatowe nie powinny istnieć. <b>Musimy zapewnić automatyczne kasowanie pokoju w chwili, gdy liczba jego uczestników osiągnie zero</b>.</p>
+                <p>Dla zachowania porządku przyjmijmy zasadę, że puste pokoje czatowe nie powinny istnieć. <b>Musimy zapewnić automatyczne kasowanie pokoju w chwili, gdy liczba jego uczestników osiągnie zero</b>.</p>
 
                 <p>Szkielet pokoju można sobie wyobrazić jako klasę:</p>
                 <pre><code class="python">class ChatRoom:
@@ -383,13 +383,18 @@ Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem kt�
                 </div>
                 <p>Pozostałe metody, parametry podanych metod i właściwości samego pokoju pozostawia się uczestnikowi do samodzielnego opracowania jako ćwiczenie przy okazji realizacji kolejnych zadań z tej części warsztatu.</p>
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 2.2 - zaimplementuj tworzenie nowego pokoju</h4>
+                    <h4>Zadanie 2.2a - zaimplementuj tworzenie nowego pokoju</h4>
                     <p>Zadanie jest gotowe po stronie frontendowej - mamy możliwość dodania pokoju po wpisaniu jego nazwy. Kliknięcie przycisku 'Załóż' powoduje wysłanie żądania na backend pod adres:</p>
                     <pre><code>POST /room?nickname=NICK
 name=NAZWA_POKOJU</code></pre>
                     <p>Jest to zwykłe żądanie POST z jednym parametrem name. Tym razem do wykonania jest cała praca na backendzie - nie ma nawet utworzonego handlera ani dodanego routingu.</p>
                     <p>Do danych formularza zawsze można się dostać przez obiekt żądania:</p>
                     <pre><code class="python">request.POST['klucz']</code></pre>
+                </div>
+
+                <div class="alert alert-warning" role="alert">
+                    <h4>Zadanie 2.2b - nie pozwalaj na założenie dwóch pokoi o tej samej nazwie!</h4>
+                    <p>Uwaga na zduplikowane nazwy! Wiele naszych implementacji w dalszej części szkolenia będzie nieco naiwnie polegać na unikalności nazwy pokoju, której obecnie nie mamy zaimplementowanej. Zadbaj o to, by nie dało się ponownie utworzyć pokoju o tej samej nazwie.</p>
                 </div>
 
                 <div class="alert alert-success" role="alert">
@@ -433,7 +438,7 @@ name=NAZWA_POKOJU</code></pre>
                       </div>
                     </div>
                 </div>
-                <p>Wiadomości są już przekazywane w ramach pokoi i nie są dostępne dla uczestników chatu poza nimi. Jest jednak pewna bardzo słaba rzecz z punktu widzenia UX - użytkownik nie wie, z którego kanału dostał wiadomość.</p>
+                <p>Wiadomości są już przekazywane w ramach pokoi i nie są dostępne dla uczestników czatu poza nimi. Jest jednak pewna bardzo słaba rzecz z punktu widzenia UX - użytkownik nie wie, z którego kanału dostał wiadomość.</p>
                 <p>Do tej pory protokół wymiany informacji pomiędzy frontendem, a backendem składał się z JSONa z dwoma polami - <code>message</code> - treść wiadomości i <code>from</code> - nazwy nadawcy. Do rozróżnienia które wiadomości pochodzą skąd - dorzućmy jeszcze trzecie pole <code>room</code> na nazwę pokoju, z którego wiadomość pochodzi:</p>
                 <pre><code class="json">{
     "message": "Pewien tekst",
