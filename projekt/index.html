@@ -147,7 +147,7 @@ function addRoom() {
             if (xhr.status == 200) {
                 refreshRoomList();
             } else {
-                alert('Wystąpił błąd: ' + xhr.statusText);
+                alert('Wystąpił błąd podczas dodawania pokoju: ' + xhr.statusText);
             }
         }
     };
@@ -163,7 +163,7 @@ function leaveRoom(roomName) {
             if (xhr.status == 200) {
                 refreshRoomList();
             } else {
-                alert('Wystąpił błąd: ' + xhr.statusText);
+                alert('Wystąpił błąd podczas opuszcania pokoju: ' + xhr.statusText);
             }
         }
     };
@@ -179,7 +179,7 @@ function joinRoom(roomName) {
             if (xhr.status == 200) {
                 refreshRoomList();
             } else {
-                alert('Wystąpił błąd: ' + xhr.statusText);
+                alert('Wystąpił błąd podczas dołączania do pokoju: ' + xhr.statusText);
             }
         }
     };
@@ -252,7 +252,7 @@ function refreshRoomList() {
                     roomEl.remove();
                 });
             } else {
-                alert('Wystąpił błąd: ' + xhr.statusText);
+                alert('Wystąpił błąd podczas pobierania listy pokojów: ' + xhr.statusText);
             }
         }
     };
@@ -277,7 +277,7 @@ function getMembersAndUpdateList() {
                     membersList.appendChild(el);
                 });
             } else {
-                alert('Wystąpił błąd: ' + xhr.statusText);
+                alert('Wystąpił błąd podczas pobierania listy uczestników: ' + xhr.statusText);
             }
         }
     };

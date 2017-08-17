@@ -67,22 +67,22 @@ pytest tests.py</code></pre>
 =========================================== FAILURES ===========================================
 ______________________________ test_receives_sent_message[pyloop] ______________________________
 
-test_client = <function test_client.<locals>.go at 0x106339400>
+test_client = <function test_client.<locals>.go at 0x104a9b1e0>
 
     async def test_receives_sent_message(test_client):
-        client = await test_client(app)
+        client = await test_client(create_app)
         connection = await client.ws_connect('/ws?nickname=JohnDoe')
 
         message = 'Hello, world!'
-        connection.send_str(message)
-        response = await connection.receive_str()
+        await connection.send_json({'message': message, 'from': 'JohnDoe'})
+        response = await connection.receive_json()
 
->       assert response == message
-E       AssertionError: assert 'response from a server' == 'Hello, world!'
-E         - response from a server
+>       assert response['message'] == message
+E       AssertionError: assert 'response from the server' == 'Hello, world!'
+E         - response from the server
 E         + Hello, world!
 
-tests/test_websocket.py:12: AssertionError
+tests.py:12: AssertionError
 ----------------------------------- Captured stdout teardown -----------------------------------
 websocket connection closed
 =================================== 1 failed in 0.07 seconds ===================================</code></pre>
@@ -165,7 +165,6 @@ websocket connection closed
     text = await response.text()
     json = await another_response.json()
 </code></pre>
-                dodać niedestruktywne odświeżanie listy pokojow w selekcie i liście pokoi
             </div>
         </div>
 
@@ -259,7 +258,7 @@ async def test_receives_sent_message(test_client):
                 <p>Jak łatwo zauważyć z testu, oczekujemy że serwer będzie nam zawsze odsyłał wysyłaną przez nas wiadomość. To nasze pierwsze zadanie.</p>
                 <div class="alert alert-success" role="alert">
                     <h4>Zadanie 1.1 - obsługa przychodzącej wiadomości</h4>
-                    <p>Spraw, by pierwszy test przechodził (uruchamianie <em>pytest tests.py</em>)</p>
+                    <p>Spraw, by pierwszy test przechodził (uruchamianie <code>pytest tests.py</code>)</p>
                     <p>Spodziewany rezultat w przeglądarce jest taki, że po odebraniu wiadomości wyświetli się ona na liście konwersacji.</p>
                 </div>
                 <div class="alert alert-warning" role="alert">
