@@ -41,7 +41,7 @@
     <div class="container">
         <div class="panel panel-default">
             <div class="panel-heading" style="text-align: center;">
-                <h1>asyncio w praktyce - PyconPL 2017, Ossa</h1>
+                <h1>asyncio w praktyce v2.0</h1>
             </div>
         </div>
         <div class="panel panel-default">
@@ -49,10 +49,11 @@
             <div class="panel-body">
                 <h3>Wymagania wstępne</h3>
                 <ul>
-                    <li>Python 3.5 lub 3.6
+                    <li>Python 3.6
                     <li>pip
                     <li>virtualenv
                     <li>git (clone wystarczy)
+                    <li>Firefox lub Chrome (potwierdzone problemy z frontendem na IE)
                 </ul>
                 Upewnij się, że masz utworzony virtualenv na potrzeby warsztatu, zainstalowane wymagane biblioteki oraz pracujesz na tym środowisku.
                 <pre><code class="bash">python3.6 -m venv ve
@@ -74,7 +75,8 @@ test_client = <function test_client.<locals>.go at 0x104a9b1e0>
         connection = await client.ws_connect('/ws?nickname=JohnDoe')
 
         message = 'Hello, world!'
-        await connection.send_json({'message': message, 'from': 'JohnDoe'})
+        example_payload = {'message': message, 'from': 'JohnDoe', 'timestamp': 0}
+        await connection.send_json(example_payload)
         response = await connection.receive_json()
 
 >       assert response['message'] == message
@@ -82,7 +84,7 @@ E       AssertionError: assert 'response from the server' == 'Hello, world!'
 E         - response from the server
 E         + Hello, world!
 
-tests.py:12: AssertionError
+tests.py:13: AssertionError
 ----------------------------------- Captured stdout teardown -----------------------------------
 websocket connection closed
 =================================== 1 failed in 0.07 seconds ===================================</code></pre>
@@ -193,7 +195,11 @@ websocket connection closed
 
         if msg.type == WSMsgType.TEXT:  # jeżeli odebrano tekstową wiadomość
             await ws.send_json(
-                {'message': 'response from the server', 'from': 'anonymous'}
+                {
+                    'message': 'response from the server',
+                    'from': 'anonymous',
+                    'timestamp': time.time()
+                }
             )   # odeślij wiadomość 'response from a server' od użytkownika anonymous
         elif msg.type == WSMsgType.ERROR:  # jeżeli zanotowano błąd
             print('ws connection closed with exception %s' % ws.exception())  # wypisz treść błędu i zakończ
@@ -214,11 +220,11 @@ async def reconnecting_websocket(request):
 
 
 async def members(request):
-    return web.json_response(text='[]')  # lista uczestników
+    return web.json_response([])  # lista uczestników
 
 
 async def rooms(request):
-    return web.json_response(text='[]')  # lista pokoi
+    return web.json_response([])  # lista pokoi
 
 
 def create_app(loop=None):  # funkcja fabrykująca aplikację aiohttp
@@ -252,7 +258,8 @@ async def test_receives_sent_message(test_client):
     connection = await client.ws_connect('/ws?nickname=JohnDoe')  # nawiązujemy połączenie websocket
 
     message = 'Hello, world!'
-    await connection.send_json({'message': message, 'from': 'JohnDoe'})  # wysyłamy wiadomość 'Hello, world!' jako JohnDoe
+    example_payload = {'message': message, 'from': 'JohnDoe', 'timestamp': 0}
+    await connection.send_json(example_payload)  # wysyłamy wiadomość 'Hello, world!' jako JohnDoe
     response = await connection.receive_json()  # odbieramy odpowiedź jako JSON - dostajemy na wyjściu słownik
 
     assert response['message'] == message  # sprawdzamy, czy zawartość się zgadza</code></pre>
@@ -283,12 +290,12 @@ async def test_receives_sent_message(test_client):
                     </div>
                 </div>
                 <p><b>Pro tip</b>: Przy komunikacji ze światem zewnętrznym nie wolno nikomu ufać! Dlatego zawsze stosuj <em>timeout'y</em> przy odbieraniu odpowiedzi! Przykład:</p>
-                <pre><code class="python">response = await connection.receive_str(timeout=1)  # po sekundzie rzuca TimeoutError</code></pre>
+                <pre id="timeouty-tip"><code class="python">response = await connection.receive_str(timeout=1)  # po sekundzie rzuca TimeoutError</code></pre>
                 <div class="alert alert-success" role="alert">
                     <h4>Zadanie 1.2b - wiadomości do pozostałych uczestników</h4>
                     <p>Zaimplementuj wysyłanie wiadomości do wszystkich podłączonych uczestników czatu.</p>
                     <p>Wypadałoby też, żeby uczestnicy wiedzieli z kim mają do czynienia - w danych wysyłanych poprawnie uzupełniaj pole 'from' nickiem użytkownika</p>
-                    <pre><code class="python">{'message': 'response from the server', <mark>'from': 'anonymous'</mark>}</code></pre>
+                    <pre><code class="python">{'message': 'response from the server', <mark>'from': 'anonymous'</mark>, 'timestamp': 0}</code></pre>
                     <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-2" aria-expanded="false" aria-controls="hint-2">Podpowiedź: gdzie przechować uczestników czatu?</a>
                     <div class="collapse" id="hint-2">
                       <div class="well">
@@ -335,7 +342,7 @@ async def websocket_handler(request):
                 </div>
                 <div class="alert alert-warning" role="alert">
                     <h4>Zadanie 1.5b - przechowuj archiwalne wiadomość w pliku</h4>
-                    <p>Zwykle trzymanie danych w pamięci to kiepski pomysł. Zamiast tego spróbuj zapisać je na dysku. Koniecznie ochroń się przed jednoczesnymi modyfikacjami tego samego pliku - <a href="https://docs.python.org/3/library/asyncio-sync.html#asyncio.Lock">Lock</a>. <br>Do samej obsługi plików bez blokowania całej pętli zdarzeń można podejść na dwa sposoby: <br>a) wykorzystać executora (patrz prezentacja lub <a href="https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.run_in_executor">dokumentacja</a>) <br>b) przy pomocy zewnętrznej biblioteki <a href="https://github.com/Tinche/aiofiles">aiofiles</a>. </p>
+                    <p>Zwykle trzymanie danych w pamięci to kiepski pomysł. Zamiast tego spróbuj zapisać je na dysku. Koniecznie ochroń się przed jednoczesnymi modyfikacjami tego samego pliku - <a href="https://docs.python.org/3/library/asyncio-sync.html#asyncio.Lock">Lock</a>. <br>Do samej obsługi plików bez blokowania całej pętli zdarzeń można podejść na dwa sposoby: <br>a) wykorzystać executora (patrz prezentacja lub <a href="https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.run_in_executor">dokumentacja</a>) ALBO &lt;bezczelna reklama&gt;<a href="https://breadcrumbscollector.tech/asyncio-choosing-the-right-executor/">blog post</a>&lt;/bezczelna reklama&gt; <br>b) przy pomocy zewnętrznej biblioteki <a href="https://github.com/Tinche/aiofiles">aiofiles</a>. </p>
                 </div>
 
                 <div class="alert alert-danger" role="alert">
@@ -356,7 +363,7 @@ Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem kt�
         </div>
 
         <div class="panel panel-default">
-            <div class="panel-heading">Część druga - pokoje</div>
+            <div class="panel-heading">Część trzecia - pokoje</div>
             <div class="panel-body">
                 <p>Do tej pory wszystko było względnie proste i nieskomplikowane - mamy czat ogólny gdzie każdy uczestnik widzi wszystko to, co piszą pozostali uczestnicy. Wprowadźmy kolejny niezbędny element każdego czatu - prywatne pokoje.</p>
                 <p>Pokój jest 'pojemnikiem' na uczestników czatu. W danym pokoju może przebywać od 1 do potencjalnie nieograniczonej ilości uczestników jednocześnie (na tyle, na ile wystarczy zasobów komputera). Podobnie jeden uczestnik może przebywać we wszystkich pokojach czatowych jakie są.<br>
@@ -435,17 +442,18 @@ name = data_dict['name']</code></pre>
                             <li>Połączenie A zakłada pokój
                             <li>Połączenie A wysyła wiadomość na nowo założony pokój
                             <li>Połączenie A odbiera wysłaną wiadomość
-                            <li>Połączenie B nie dostaje wiadomości
+                            <li>Połączenie B nie dostaje wiadomości - <a href="#timeouty-tip">wykorzystaj timeout</a> i uznaj wystąpienie <code>TimeoutError</code> jako pożądaną sytuację
                         </ul>
                       </div>
                     </div>
                 </div>
                 <p>Wiadomości są już przekazywane w ramach pokoi i nie są dostępne dla uczestników czatu poza nimi. Jest jednak pewna bardzo słaba rzecz z punktu widzenia UX - użytkownik nie wie, z którego kanału dostał wiadomość.</p>
-                <p>Do tej pory protokół wymiany informacji pomiędzy frontendem, a backendem składał się z JSONa z dwoma polami - <code>message</code> - treść wiadomości i <code>from</code> - nazwy nadawcy. Do rozróżnienia które wiadomości pochodzą skąd - dorzućmy jeszcze trzecie pole <code>room</code> na nazwę pokoju, z którego wiadomość pochodzi:</p>
+                <p>Do tej pory protokół wymiany informacji pomiędzy frontendem, a backendem składał się z JSONa z trzema polami - <code>message</code> - treść wiadomości. <code>from</code> - nazwy nadawcy oraz <code>timestamp</code> - czas wysłania wiadomości. Do rozróżnienia które wiadomości pochodzą skąd - dorzućmy jeszcze czwarte pole <code>room</code> na nazwę pokoju, z którego wiadomość pochodzi:</p>
                 <pre><code class="json">{
     "message": "Pewien tekst",
     "from": "nazwa_nadawcy",
-    "room": "prywatne-rozmowy"
+    "timestamp": 0,
+    "room": "prywatne-rozmowy",
 }
 </code></pre>
                 <p><b>Frontend w pełni obsługuje to pole.</b></p>
@@ -511,7 +519,6 @@ loop.run_forever()</code></pre>
                 <ul>
                     <li><a href="http://highlightjs.org/">highlightjs</a></li>
                     <li><a href="http://getbootstrap.com/">bootstrap 3</a></li>
-                    <li><a href="http://revealjs.com/">reveal.js</a></li>
                 </ul>
             </div>
         </div>

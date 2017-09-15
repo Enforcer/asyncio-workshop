@@ -16,6 +16,7 @@
         <div class="col-sm-4">
             <div class="panel">
                 <h3>Uczestnicy</h3>
+                <div class="alert alert-danger" id="members-failed" style="padding: 7px; margin: 5px 0; display: none">błąd komunikacji</div>
                 <ul id="members-list"></ul>
             </div>
             <div class="panel">
@@ -30,6 +31,7 @@
                         </div>
                     </form>
                 </div>
+                <div class="alert alert-danger" id="rooms-failed" style="padding: 7px; margin: 5px 0; display: none">błąd komunikacji</div>
                 <ul id="rooms-list"></ul>
             </div>
         </div>
@@ -82,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
         text.innerText = received.message;
         var datetime = document.createElement('span');
         datetime.className = 'datetime';
-        datetime.innerText = getFormattedTime();
+        datetime.innerText = getFormattedTime(received.timestamp * 1000);
         var messageFrom = document.createElement('span');
         messageFrom.className = 'message-from';
         messageFrom.innerText = received.from;
@@ -287,8 +289,9 @@ function refreshRoomList() {
                     var roomEl = document.querySelector('li[data-room-name="' + roomName + '"]');
                     roomEl.remove();
                 });
+                document.getElementById('rooms-failed').style.display = 'none';
             } else {
-                alert('Wystąpił błąd podczas pobierania listy pokojów: ' + xhr.statusText);
+                document.getElementById('rooms-failed').style.display = 'block';
             }
         }
     };
@@ -312,15 +315,16 @@ function getMembersAndUpdateList() {
                     el.innerText = member;
                     membersList.appendChild(el);
                 });
+                document.getElementById('members-failed').style.display = 'none';
             } else {
-                alert('Wystąpił błąd podczas pobierania listy uczestników: ' + xhr.statusText);
+                document.getElementById('members-failed').style.display = 'block';
             }
         }
     };
 }
 
-function getFormattedTime() {
-    var d = new Date();
+function getFormattedTime(timestamp) {
+    var d = new Date(timestamp);
     return ('0' + d.getHours()).slice(-2) + ":" + ('0' + d.getMinutes()).slice(-2) + ":" + ('0' + d.getSeconds()).slice(-2);
 }
 

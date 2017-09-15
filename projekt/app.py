@@ -1,4 +1,6 @@
 import asyncio
+import time
+
 from aiohttp import (
     web,
     WSMsgType,
@@ -18,7 +20,11 @@ async def websocket_handler(request):
 
         if msg.type == WSMsgType.TEXT:
             await ws.send_json(
-                {'message': 'response from the server', 'from': 'anonymous'}
+                {
+                    'message': 'response from the server',
+                    'from': 'anonymous',
+                    'timestamp': time.time()
+                }
             )
         elif msg.type == WSMsgType.ERROR:
             print('ws connection closed with exception %s' % ws.exception())
