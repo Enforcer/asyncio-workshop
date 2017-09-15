@@ -363,6 +363,87 @@ Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem kt�
         </div>
 
         <div class="panel panel-default">
+            <div class="panel-heading">Część druga - strumienie i protokoły</div>
+            <div class="panel-body">
+                <p>Implementacja opierająca się o pętlę zdarzeń zapewnie wygodny sposób na osadzenie w jednym procesie kilku nasłuchujących serwerów jednocześnie.</p>
+                <p>Oznacza to, że jeden program może jednocześnie obsługiwać ruch HTTP na jednym porcie, a na drugim prowadzić binarną wymianę danych opartą o UDP. Skoro mamy tak potężnę narzędzie w rękach, to spróbujmy to wykorzystać - wystawmy na porcie 8888 interfejs administratorski, który umożliwi nam pisanie do wszystkich uczestników na czacie jako <em>administrator</em>.</p>
+                <p>Aby zadanie było ciekawsze, to zróbmy to osobnym endpointem, do którego będziemy mogli się dobić używając TCP. Aby tego dokonać, mamy w zasadzie dwie opcje - <a href="https://docs.python.org/3/library/asyncio-protocol.html">Transporty - protokoły</a> (oparte na callbackach) lub <a href="https://docs.python.org/3/library/asyncio-stream.html">Strumienie</a> (oparte na coroutine'ach). Użyjemy tych drugich ze względu na prostszą implementację. Prosty przykład:</p>
+                <pre><code class="python">async def handle_echo(reader, writer):
+    data = await reader.readline()  # odczytaj jedną linię. Oczywiście może zakończyć się wyjątkiem
+    message = data.decode()  # dane przychodzą w formie binarnej, więc aby dostać stringa trzeba je zdekodować
+
+    writer.write(data)  # zapisz do bufora
+    await writer.drain()  # daj szansę na wypchnięcie zawartości bufora
+
+    writer.close()  # zamykamy połączenie
+
+loop = asyncio.get_event_loop()
+# następne dwie linijki odpowiadają za inicjalizację serwera. muszą zostać wykonane przed <b>web.run_app(app, port=8080)</b>
+coro = asyncio.start_server(handle_echo, '127.0.0.1', 8888, loop=loop)
+server = loop.run_until_complete(coro)</code></pre>
+
+                <h3>Korzystanie z interfejsu administratora</h3>
+                <p>Najprościej posłużyć się programem <em>Telnet</em> obecnym w wielu dystrybucjach Linuksa. Można to zrobić komendą <code>telnet 127.0.0.1 8888</code></p>
+                <p>Jeżeli z jakiegoś powodu nie będzie ona u Ciebie dostępna, spróbuj samym Pythonem:</p>
+                <pre><code class="bash">python -m telnetlib 127.0.0.1 8888</code></pre>
+
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.1 - użycie strumieni</h4>
+                    <p><b>Zaimplementuj interfejs admina przy użyciu strumieni</b></p>
+                    <ul>
+                        <li>Po podłączeniu chcemy dostać informację o ilości osób obecnych na czacie</li>
+                        <li>Wiadomości wysłane do naszej aplikacji (przyjmijmy że jedna linia = jedna wiadomość) powinny zostać przekazane do wszystkich obecnych na czacie z podpisem <em>administrator</em></li>
+                        <li>Odebranie pustej wiadomości od admina ma skutkować rozłączeniem połączenia</li>
+                    </ul>
+                    <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-5" aria-expanded="false" aria-controls="hint-5">Podpowiedź: jak przetestować strumień?</a>
+                    <div class="collapse" id="hint-5">
+                      <div class="well">
+                        <p>Jak widać z przykładu, handler strumienia jest po prostu funkcją, więc testujemy go tak samo jak każdą inną coroutine. Potrzebujemy tylko sprepraować argumenty - <code>asyncio.StreamReader</code> i <code>asyncio.StreamWriter</code>Pierwszy przypadek testowy może wyglądać w taki sposób:</p>
+                        <pre><code>async def test_stream_handle(event_loop):
+    reader = StreamReader()  # klasę StreamReader możemy utworzyć bez żadnych zależności
+
+    async def dummy_drain():  # StreamWriter nie jest taki prosty do stworzenia, więc użyjemy mocka
+        return
+    writer = Mock(spec_set=StreamWriter, drain=dummy_drain)
+    reader.feed_data('')  # wkładamy pusty ciąg znaków do readera by zakończyła nam się komunikacja (patrz punkt 3)
+
+    await handle_admin(reader, writer)  # pozwalamy handlerowi działać
+
+    # w przypadku gdy nikogo nie podlączyliśmy do czatu powinniśmy dostać informację, że jest na nim 0 osób
+    writer.write.assert_called_once_with('Na czacie jest 0 osób')</code></pre>
+                      </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-danger" role="alert">
+                    <h4>Zadanie 2.2 - użycie protokołów</h4>
+                    <p><b>Przepisz implementację opartą o strumienie na protokół.</b></p>
+                    <p>Protokoły oparte o callbacki mogą być postrzegane jako <em>czystsze</em> rozwiązanie problemu. Cała trudność w ich użyciu polega jednak na tym, że callbacki nie są coroutine'ami i nic nie będzie oczekiwać aż w ich środku zakończy się asynchroniczna operacja. Prawdopodobnie takie operacje trzeba będzie opakować w <a href="https://docs.python.org/3/library/asyncio-task.html#task">Task</a>.</p>
+                    <p>Przykład echo serwera z dokumentacji <code>asyncio</code>:</p>
+                    <pre><code class="python">class EchoServerProtocol(asyncio.Protocol):
+    def connection_made(self, transport):
+        peername = transport.get_extra_info('peername')
+        print('Connection from {}'.format(peername))
+        self.transport = transport
+
+    def data_received(self, data):
+        message = data.decode()
+        print('Data received: {!r}'.format(message))
+
+        print('Send: {!r}'.format(message))
+        self.transport.write(data)
+
+        print('Close the client socket')
+        self.transport.close()
+
+loop = asyncio.get_event_loop()
+coro = loop.create_server(EchoServerProtocol, '127.0.0.1', 8888)
+server = loop.run_until_complete(coro)</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
             <div class="panel-heading">Część trzecia - pokoje</div>
             <div class="panel-body">
                 <p>Do tej pory wszystko było względnie proste i nieskomplikowane - mamy czat ogólny gdzie każdy uczestnik widzi wszystko to, co piszą pozostali uczestnicy. Wprowadźmy kolejny niezbędny element każdego czatu - prywatne pokoje.</p>
@@ -385,12 +466,12 @@ Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem kt�
     async def send_to_all_members(...):
         pass</code></pre>
                 <div class="alert alert-warning" role="alert">
-                    <h4>Zadanie 2.1 - zacznij implementację <code>ChatRoom</code> używając TDD</h4>
+                    <h4>Zadanie 3.1 - zacznij implementację <code>ChatRoom</code> używając TDD</h4>
                     <p>Znając część interfejsu klasy <code>ChatRoom</code> zacznij ją implementować już teraz korzystając z testów jednostkowych.</p>
                 </div>
                 <p>Pozostałe metody, parametry podanych metod i właściwości samego pokoju pozostawia się uczestnikowi do samodzielnego opracowania jako ćwiczenie przy okazji realizacji kolejnych zadań z tej części warsztatu.</p>
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 2.2a - zaimplementuj tworzenie nowego pokoju</h4>
+                    <h4>Zadanie 3.2a - zaimplementuj tworzenie nowego pokoju</h4>
                     <p>Zadanie jest gotowe po stronie frontendowej - mamy możliwość dodania pokoju po wpisaniu jego nazwy. Kliknięcie przycisku 'Załóż' powoduje wysłanie żądania na backend pod adres:</p>
                     <pre><code>POST /room?nickname=NICK
 name=NAZWA_POKOJU</code></pre>
@@ -402,12 +483,12 @@ name = data_dict['name']</code></pre>
                 </div>
 
                 <div class="alert alert-warning" role="alert">
-                    <h4>Zadanie 2.2b - nie pozwalaj na założenie dwóch pokoi o tej samej nazwie!</h4>
+                    <h4>Zadanie 3.2b - nie pozwalaj na założenie dwóch pokoi o tej samej nazwie!</h4>
                     <p>Uwaga na zduplikowane nazwy! Wiele naszych implementacji w dalszej części szkolenia będzie nieco naiwnie polegać na unikalności nazwy pokoju, której obecnie nie mamy zaimplementowanej. Zadbaj o to, by nie dało się ponownie utworzyć pokoju o tej samej nazwie.</p>
                 </div>
 
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 2.3 - zaimplementuj zwracanie listy pokoi</h4>
+                    <h4>Zadanie 3.3 - zaimplementuj zwracanie listy pokoi</h4>
                     <p>Frontend w określonych sytuacjach odpytuje backendu o listę pokoi wysyłając żądanie pod adres</p>
                     <pre><code>GET /rooms?nickname=NICK</code></pre>
                     <p>Kolejnym zadaniem będzie zaimplementowanie odpowiedniej akcji. Dane zwracane mają być tekstem, który da się potem zdekodować do jsona:</p>
@@ -425,12 +506,12 @@ name = data_dict['name']</code></pre>
                 </div>
                 <p>Mamy już proste początki obsługi pokoi, jak dodawanie nowego i zwracanie istniejących. Na początku tej części wspomniałem, że puste pokoje chcemy usuwać. Tym zajmiemy się już niedługo, ale co z obecnością w środku? Na początku prosty przypadek.</p>
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 2.4 - osoba, która zakłada pokój automatycznie jest do niego dodawana</h4>
+                    <h4>Zadanie 3.4 - osoba, która zakłada pokój automatycznie jest do niego dodawana</h4>
                     <p>Obecność w pokoju powinna się wpływać na listę pokoi dodaną w poprzednim zadaniu, a konkretnie flaga <code>present</code> powinna mieć wartość <code>true</code> po dołączeniu. Obecność objawi się też na liście pokoi - pojawi się przycisk do wychodzenia z pokoju.</p>
                 </div>
                 <p>Zanim dojdziemy do dołączania do pokoi i w zasadzie zakończymy w ten sposób ich CRUDową (Create-Read-Update-Delete) obsługę, to zajmijmy się jeszcze samym mięsem - czyli wysyłaniem wiadomości pomiędzy uczestnikami.</p>
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 2.5 - dodaj obsługę pokoju na backendzie</h4>
+                    <h4>Zadanie 3.5 - dodaj obsługę pokoju na backendzie</h4>
                     <p>Na frontendzie obok przycisku <b>Wyślij</b> znajduje się pole jednokrotnego wyboru pokoju, na którym piszemy. Jeżeli cokolwiek z niego wybierzemy, to nazwa wybranego pokoju zostanie przesłana jako pole <code>room</code> na backend razem z wiadomością i nazwą nadawcy.</p>
                     <p>Zadbaj o to, by wiadomości wysłane na dany pokój trafiały tylko do ludzi w nim obecnych.</p>
                     <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-4" aria-expanded="false" aria-controls="hint-4">Podpowiedź: scenariusz testu</a>
@@ -458,14 +539,14 @@ name = data_dict['name']</code></pre>
 </code></pre>
                 <p><b>Frontend w pełni obsługuje to pole.</b></p>
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 2.6 - do wiadomości wysłanych w ramach pokoju dodaj informację skąd dana wiadomość pochodzi</h4>
+                    <h4>Zadanie 3.6 - do wiadomości wysłanych w ramach pokoju dodaj informację skąd dana wiadomość pochodzi</h4>
                     <p>Rezultat powinien być widoczny na frontendzie obok nicku osoby, która wysłała wiadomość.
                     <br>Testy powinny sprawdzać obecność wszystkich trzech potrzebnych na tym etapie pól.</p>
                 </div>
 
                 <p>Do kompletności funkcjonalności pokoi brakuje nam już tylko możliwości opuszczenia konwersacji.</p>
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 2.7 - implementacja opuszczania pokoju</h4>
+                    <h4>Zadanie 3.7 - implementacja opuszczania pokoju</h4>
                     <p>Podstawową sprawą jest obsłużyć żądanie użytkownika, które jest inicjowane kliknięciem odpowiedniego przycisku w interfejsie.</p>
                     <p style="text-align: center; margin: 30px 0;"><img src="res/leaveroom.png" width="50%" height="50%"></p>
                     <p>Frontend w reakcji na kliknięcie przycisku z 'X' wysyła na backend żądanie <code>POST /leave-room?nickname=NICK</code> z jednym parametrem w POST <code>name</code> - nazwą pokoju z którego dany użytkownik chce wyjść.</p>
@@ -476,13 +557,13 @@ name = data_dict['name']</code></pre>
 
                 <p>W zasadzie mamy kompletną funkcjonalność pokojów. Nie możemy jednak pozwolić by nieużywane pokoje zajmowały pamięć i obciążały nasz czat. </p>
                 <div class="alert alert-warning" role="alert">
-                    <h4>Zadanie 2.8 - automatyczne usuwanie pustego pokoju</h4>
+                    <h4>Zadanie 3.8 - automatyczne usuwanie pustego pokoju</h4>
                     <p>Sprawa jest relatywnie prosta. Każdy pokój wie o dodawaniu i usuwaniu z niego uczestników. Musi też wiedzieć kto jest w pokoju w danej chwili ze względu na implementację wysyłania wiadomości wszystkim obecnym
                     więc powinniśmy też łatwo wykryć moment, gdy pokój opuszcza ostatnia osoba.</p>
                 </div>
 
                 <div class="alert alert-danger" role="alert">
-                    <h4>Zadanie 2.9 - automatyczne usuwanie pustego pokoju po jakimś czasie</h4>
+                    <h4>Zadanie 3.9 - automatyczne usuwanie pustego pokoju po jakimś czasie</h4>
                     <p>Kasowanie pustych pokoi od razu może być momentami zbyt agresywne. Zamiast tego podejdźmy do problemu poprzez usuwanie pustych pokojów po powiedzmy 15 sekundach od wyjścia ostatniej osoby.</p>
                     <p><code>asyncio</code> posiada mechanizmy planowania zadań po jakimś czasie. Ich proste wykorzystanie:</p>
                     <pre><code class="python">loop = asyncio.get_event_loop()
@@ -499,13 +580,13 @@ loop.run_forever()</code></pre>
 
                 <p>Cóż nam jednak po pokojach, w których rozmawiać nie mogą uczestnicy poza założycielem?</p>
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 2.10 - dołączanie do pokoi</h4>
+                    <h4>Zadanie 3.10 - dołączanie do pokoi</h4>
                     <p>Zaimplementuj dołączanie do pokoju.</p>
                     <p>Frontend po kliknięciu pokoju na liście wysyła żądanie <code>POST join-room?nickname=NICK</code> z polem <code>name</code> żądania ustawionym na nazwę pokoju</p>
                 </div>
                 <p>Czegoś tu jeszcze brakuje... powiadomień o użytkownikach, którzy opuścili pokój!</p>
                 <div class="alert alert-warning" role="alert">
-                    <h4>Zadanie 2.11 - Powiadomienia o użytkownikach opuszczających pokój</h4>
+                    <h4>Zadanie 3.11 - Powiadomienia o użytkownikach opuszczających pokój</h4>
                     <p>Za każdym razem gdy jakiś uczestnik rozmowy opuści pokój wyślij do wszystkich pozostałych informację o tym. Jako wartość pola <code>from</code> możesz przyjąć dowolną wartośc, na przykład <code>server</code>.</p>
                 </div>
             </div>
