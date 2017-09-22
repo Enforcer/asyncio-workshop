@@ -366,8 +366,8 @@ Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem kt�
             <div class="panel-heading">Część druga - strumienie i protokoły</div>
             <div class="panel-body">
                 <p>Implementacja opierająca się o pętlę zdarzeń zapewnie wygodny sposób na osadzenie w jednym procesie kilku nasłuchujących serwerów jednocześnie.</p>
-                <p>Oznacza to, że jeden program może jednocześnie obsługiwać ruch HTTP na jednym porcie, a na drugim prowadzić binarną wymianę danych opartą o UDP. Skoro mamy tak potężnę narzędzie w rękach, to spróbujmy to wykorzystać - wystawmy na porcie 8888 interfejs administratorski, który umożliwi nam pisanie do wszystkich uczestników na czacie jako <em>administrator</em>.</p>
-                <p>Aby zadanie było ciekawsze, to zróbmy to osobnym endpointem, do którego będziemy mogli się dobić używając TCP. Aby tego dokonać, mamy w zasadzie dwie opcje - <a href="https://docs.python.org/3/library/asyncio-protocol.html">Transporty - protokoły</a> (oparte na callbackach) lub <a href="https://docs.python.org/3/library/asyncio-stream.html">Strumienie</a> (oparte na coroutine'ach). Użyjemy tych drugich ze względu na prostszą implementację. Prosty przykład:</p>
+                <p>Oznacza to, że jeden program może jednocześnie obsługiwać ruch HTTP na jednym porcie, a na drugim prowadzić binarną wymianę danych opartą o UDP. Skoro mamy tak potężnę narzędzie w rękach, to spróbujmy to wykorzystać - wystawmy na porcie 8888 serwer TCP, który umożliwi podłączanie się do czatu klientom konsolowym.</p>
+                <p>Aby zadanie było ciekawsze, to zróbmy to osobnym endpointem, do którego będziemy mogli się dobić używając TELNETu. Aby tego dokonać, mamy w zasadzie dwie opcje - <a href="https://docs.python.org/3/library/asyncio-protocol.html">Transporty - protokoły</a> (oparte na callbackach) lub <a href="https://docs.python.org/3/library/asyncio-stream.html">Strumienie</a> (oparte na coroutine'ach). Użyjemy jednego i drugiego podejścia dla implementacji serwera i klienta. W pierwszej kolejności napiszemy część serwerową używając strumieni - są one prostsze do zrozumienia i podobne do handlerów połączeń websocket z jakimi mieliśmy do czynienia w pierwszej części. Prosty przykład echo serwera:</p>
                 <pre><code class="python">async def handle_echo(reader, writer):
     data = await reader.readline()  # odczytaj jedną linię. Oczywiście może zakończyć się wyjątkiem
     message = data.decode()  # dane przychodzą w formie binarnej, więc aby dostać stringa trzeba je zdekodować
@@ -382,63 +382,162 @@ loop = asyncio.get_event_loop()
 coro = asyncio.start_server(handle_echo, '127.0.0.1', 8888, loop=loop)
 server = loop.run_until_complete(coro)</code></pre>
 
-                <h3>Korzystanie z interfejsu administratora</h3>
+                <h3>Testowanie interfejsu dla klientów konsolowych</h3>
                 <p>Najprościej posłużyć się programem <em>Telnet</em> obecnym w wielu dystrybucjach Linuksa. Można to zrobić komendą <code>telnet 127.0.0.1 8888</code></p>
                 <p>Jeżeli z jakiegoś powodu nie będzie ona u Ciebie dostępna, spróbuj samym Pythonem:</p>
                 <pre><code class="bash">python -m telnetlib 127.0.0.1 8888</code></pre>
 
+                <h3>Zaimplementuj interfejs czatowy oparty o TCP na porcie 8888</h3>
                 <div class="alert alert-success" role="alert">
-                    <h4>Zadanie 2.1 - użycie strumieni</h4>
-                    <p><b>Zaimplementuj interfejs admina przy użyciu strumieni</b></p>
-                    <ul>
-                        <li>Po podłączeniu chcemy dostać informację o ilości osób obecnych na czacie</li>
-                        <li>Wiadomości wysłane do naszej aplikacji (przyjmijmy że jedna linia = jedna wiadomość) powinny zostać przekazane do wszystkich obecnych na czacie z podpisem <em>administrator</em></li>
-                        <li>Odebranie pustej wiadomości od admina ma skutkować rozłączeniem połączenia</li>
-                    </ul>
+                    <h4>Zadanie 2.1 - podłącznie i rozłączenie</h4>
+                    <p>
+                        Ustalmy od ustalenia protokołu wymiany danych. Ze względu na pewne właściwości strumieni, wygodnie nam będzie zacząć od flow:
+                        <ul>
+                            <li>*Klient* podłącza się</li>
+                            <li>*Serwer* wysyła powitalne pytanie o nickname (ciąg znaków <code>YOUR NICK?</code>)</li>
+                            <li>*Klient* wysyła ciąg znaków QUIT' (musi się kończyć znakiem nowej linii!)</li>
+                            <li>*Serwer* kończy połączenie</li>
+                        </ul>
+                    </p>
                     <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-5" aria-expanded="false" aria-controls="hint-5">Podpowiedź: jak przetestować strumień?</a>
                     <div class="collapse" id="hint-5">
                       <div class="well">
-                        <p>Jak widać z przykładu, handler strumienia jest po prostu funkcją, więc testujemy go tak samo jak każdą inną coroutine. Potrzebujemy tylko sprepraować argumenty - <code>asyncio.StreamReader</code> i <code>asyncio.StreamWriter</code>Pierwszy przypadek testowy może wyglądać w taki sposób:</p>
+                        <p>Jak widać z przykładu, handler strumienia jest po prostu funkcją, więc testujemy go tak samo jak każdą inną coroutine. Potrzebujemy tylko spreparować argumenty - <code>asyncio.StreamReader</code> i <code>asyncio.StreamWriter</code>Pierwszy przypadek testowy może wyglądać w taki sposób:</p>
                         <pre><code>async def test_stream_handle(event_loop):
     reader = StreamReader()  # klasę StreamReader możemy utworzyć bez żadnych zależności
 
     async def dummy_drain():  # StreamWriter nie jest taki prosty do stworzenia, więc użyjemy mocka
         return
     writer = Mock(spec_set=StreamWriter, drain=dummy_drain)
-    reader.feed_data('')  # wkładamy pusty ciąg znaków do readera by zakończyła nam się komunikacja (patrz punkt 3)
+    reader.feed_data('QUIT\n')  # wkładamy komendę zakończenia połączenia do readera by zakończyła nam się komunikacja (patrz punkt 3)
 
-    await handle_admin(reader, writer)  # pozwalamy handlerowi działać
+    await handle_admin(reader, writer)  # pozwalamy handlerowi działać. Zła implemnetacja spowoduje że tu utkniemy
 
     # w przypadku gdy nikogo nie podlączyliśmy do czatu powinniśmy dostać informację, że jest na nim 0 osób
-    writer.write.assert_called_once_with('Na czacie jest 0 osób')</code></pre>
+    writer.write.assert_called_once_with('YOUR NICK?\n')</code></pre>
+                      </div>
+                    </div>
+                    <br>
+                    <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-13" aria-expanded="false" aria-controls="hint-13">Podpowiedź: jak wprowadzić timeout gdy API go nie udostępnia?</a>
+                    <div class="collapse" id="hint-13">
+                      <div class="well">
+                        <p>To może się przydać w testowaniu strumienia - praktyka pokazuje, że łatwo jest 'przywiesić' testy przez nieprawidłową implementację.</p>
+                        <p>Służy do tego <code>asyncio.wait_for</code>. Nie przerywa operacji na którą czekasz, ale umożliwia podjęcie innej akcji w miejscu, w którym nie doczekaliśmy się odpowiedzi.</p>
+                        <p>Więcej: <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.wait_for">dokumentacja</a></p>
+                      </div>
+                    </div>
+                </div>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.2 - zapytanie o nickname</h4>
+                    <p>
+                        Pierwszą rzeczą jaką zobaczy po podłączeniu się klient konsolowy powinno być pytanie o nickname używany na czacie. Dopiero po jego podaniu (i zweryfikowaniu że jest wolny!) można rozpocząć odbieranie i wysyłanie wiadomości.
+                    </p>
+                    <p>
+                        <b>Przykładowy "protokół":</b>
+                        <ol>
+                            <li>*Klient* podłącza się</li>
+                            <li>*Serwer* odsyła <code>YOUR_NICK?</code></li>
+                            <li>*Klient* przesyła ciąg znaków jako swój nick</li>
+                            <li>*Serwer* sprawdza, czy nick jest wolny, jeśli tak - punkt 5. W przeciwnym przypadku powrót od punktu 2.</li>
+                            <li>*Serwer* odpowiada <code>HELLO {NICK}</code></li>
+                        </ol>
+                    </p>
+                </div>
+                <p>Mamy już solidną podbudowę i z tego punktu będziemy w stanie łatwo zintegrować się z klientami chatu rozmawiającymi przez websocket.</p>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.3 - wysyłka wiadomości w trybie "echo"</h4>
+                    <p>
+                        Analogicznie do Websocketów zaczniemy od prostej rzeczy - każda wiadomość którą wyślemy powinna do nas wrócić podpisana naszym nickiem.
+                    </p>
+                    <p>
+                        <b>Przykładowy flow:</b>
+                        <ol>
+                            <li>*Klient* podłącza się</li>
+                            <li>*Serwer* odsyła <code>YOUR_NICK?</code></li>
+                            <li>*Klient* przesyła <code>JON_NODE</code></li>
+                            <li>*Serwer* odpowiada <code>HELLO JON_NODE</code></li>
+                            <li>*Klient* przesyła <code>STX NEXT</code></li>
+                            <li>*Serwer* odpowiada <code>JON_NODE >> STX NEXT</code></li>
+                        </ol>
+                    </p>
+                </div>
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.4 - Rozmowa z innymi klientami konsolowymi</h4>
+                    <p>
+                        Kilku podłączonych użytkownikow powinno móc wymieniać ze sobą wiadomości. Jeżeli jeden z nich coś wyśle, to drugi powinien otrzymać tę wiadomośc poprzedzoną nickiem nadawcy i vice versa.
+                    </p>
+                </div>
+
+                <div class="alert alert-warning" role="alert">
+                    <h4>Zadanie 2.5 - Rozmowa z wszystkimi na czacie - z websocketów też</h4>
+                    <p>
+                        Umożliwić wysyłanie wiadomości klientom konsolowym przez tych podlączonych przez Websocket i vice versa.
+                    </p>
+                    <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-14" aria-expanded="false" aria-controls="hint-14">Podpowiedź: jak połączyć ze sobą handler strumienia i serwer aiohttp?</a>
+                    <div class="collapse" id="hint-14">
+                      <div class="well">
+                        TODO
                       </div>
                     </div>
                 </div>
 
-                <div class="alert alert-danger" role="alert">
-                    <h4>Zadanie 2.2 - użycie protokołów</h4>
-                    <p><b>Przepisz implementację opartą o strumienie na protokół.</b></p>
-                    <p>Protokoły oparte o callbacki mogą być postrzegane jako <em>czystsze</em> rozwiązanie problemu. Cała trudność w ich użyciu polega jednak na tym, że callbacki nie są coroutine'ami i nic nie będzie oczekiwać aż w ich środku zakończy się asynchroniczna operacja. Prawdopodobnie takie operacje trzeba będzie opakować w <a href="https://docs.python.org/3/library/asyncio-task.html#task">Task</a>.</p>
-                    <p>Przykład echo serwera z dokumentacji <code>asyncio</code>:</p>
-                    <pre><code class="python">class EchoServerProtocol(asyncio.Protocol):
-    def connection_made(self, transport):
-        peername = transport.get_extra_info('peername')
-        print('Connection from {}'.format(peername))
-        self.transport = transport
+                <h3>Implementacja klienta z użyciem protokołu</h3>
+                <p>Protokół to zainspirowany biblioteką <a href="https://twistedmatrix.com/">Twisted</a> prymityw do zakodowania sposobu wymiany danych przez użycie callbacków, <em>które nie są coroutine'ami</em>.</p>
+                <pre><code class="python">import asyncio
 
-    def data_received(self, data):
-        message = data.decode()
-        print('Data received: {!r}'.format(message))
+class EchoClientProtocol(asyncio.Protocol):  # dziedziczymy po standardowej klasie
+    def __init__(self, message, loop):  # __init__ budujemy wedle uznania, nie ma wymagań
+        self.message = message
+        self.loop = loop
 
-        print('Send: {!r}'.format(message))
-        self.transport.write(data)
+    def connection_made(self, transport):  # callback wykonywany po nawiązaniu połączenia
+        transport.write(self.message.encode())   # wyślij wiadomość, zwróć uwagę na brak await!
+        print('Data sent: {!r}'.format(self.message))
 
-        print('Close the client socket')
-        self.transport.close()
+    def data_received(self, data):  # callback wywoływany na odebranie danych
+        print('Data received: {!r}'.format(data.decode()))
+
+    def connection_lost(self, exc):  # callback wywoływany w przypadku zerwania połączenia
+        print('The server closed the connection')
+        print('Stop the event loop')
+        self.loop.stop()
 
 loop = asyncio.get_event_loop()
-coro = loop.create_server(EchoServerProtocol, '127.0.0.1', 8888)
-server = loop.run_until_complete(coro)</code></pre>
+message = 'Hello World!'
+coro = loop.create_connection(lambda: EchoClientProtocol(message, loop),
+                              '127.0.0.1', 8888)
+loop.run_until_complete(coro)
+loop.run_forever()
+loop.close()</code></pre>
+                <p>Przekopiuj powyższy <a href="https://docs.python.org/3/library/asyncio-protocol.html#tcp-echo-client-protocol">przykład z dokumentacji</a> asyncio do nowego pliku <code>console_client.py</code> i zacznij w nim implementować logikę wymiany danych z serwerem.</p>
+
+                <div class="alert alert-success" role="alert">
+                    <h4>Zadanie 2.6 - Implementacja klienta korzystając z Protokołu</h4>
+                    <p>
+                        Znając już dość dokładnie sposób wymiany danych od strony serwera zaimplementowanie klienta nie powinno nastręczać trudności.
+                    </p>
+                    <p>Nick można pobrać od użytkownika przy użyciu wbudowanej funkcji <code>input</code></p>
+                </div>
+
+                <div class="alert alert-info" role="alert">
+                    <h4>Uwaga końcowa - coroutine's a protokoły</h4>
+                    <p>Jak można łatwo zauważyć callbacki w protokołach nie są coroutine'mi - nie mają słowa kluczowego async.</p>
+                    <p>Oznacza to, że zablokowanie ich wykonania i poczekanie w "środku" na jakąś oeprację nie wchodzi w grę - po prostu nic nie czeka aż callback się zakończy. Asyncio oczekuje synchronicznej implementacji. Jak w takim razie sobie poradzić, gdy faktycznie potrzebujemy wykonać jakąś operację asynchroniczną?  Wiadomo, że nie da się na nią poczekać, ale może da się ją puścić <em>w tło</em>?</p>
+                    <pre><code class="python">async def long_operation():
+    print('long_operation started')
+    await asyncio.sleep(3)
+    print('long_operation finished')
+
+
+def synchronous_callback():
+    # teraz chcemy wykonać jakąś asynchroniczną operację, ale nie chcemy/nie możemy na nią czekać.
+    # Tworzymy więc task a pętla zdarzeń <em>kiedyś</em> go wykona:
+    task = asyncio.ensure_future(long_operation())
+
+    # gdyby synchronous_callback była coroutine'ą, to moglibyśmy na task zaczekać
+    # ale w tym przypadku nie ma takiej możliwości
+    # await task
+</code></pre>
                 </div>
             </div>
         </div>
