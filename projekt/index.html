@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var messagesPanel = document.getElementById('messages-panel');
     var roomsForm = document.getElementById('rooms-form');
 
-    var socket = new ReconnectingWebSocket(WS_URL, null, {debug: false, reconnectInterval: 3000});
+    var socket = new ReconnectingWebSocket(WS_URL, null, {debug: false, reconnectInterval: 1000});
     socket.onopen = function() {
         messageSendBtn.removeAttribute('disabled');
     };
