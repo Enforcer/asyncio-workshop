@@ -372,6 +372,10 @@ Warto wiedzieć, czym różnią się te dwie metody przed zaimplementowaniem kt�
     data = await reader.readline()  # odczytaj jedną linię. Oczywiście może zakończyć się wyjątkiem
     message = data.decode()  # dane przychodzą w formie binarnej, więc aby dostać stringa trzeba je zdekodować
 
+    # alternatywny sposób czytania po jednej linii:
+    # async for line in reader:
+    #   message = line.decode()
+
     writer.write(data)  # zapisz do bufora
     await writer.drain()  # daj szansę na wypchnięcie zawartości bufora
 
@@ -476,7 +480,24 @@ server = loop.run_until_complete(coro)</code></pre>
                     <a class="btn btn-default hint-button" role="button" data-toggle="collapse" href="#hint-14" aria-expanded="false" aria-controls="hint-14">Podpowiedź: jak połączyć ze sobą handler strumienia i serwer aiohttp?</a>
                     <div class="collapse" id="hint-14">
                       <div class="well">
-                        TODO
+                        <pre><code class="python">async def handle_echo(reader, writer, app):
+    async for line in reader:
+        print('got line within app', line, app)
+        writer.write(line)
+        await writer.drain()
+
+    writer.close()
+
+
+if __name__ == '__main__':
+    app = create_app()
+    loop = asyncio.get_event_loop()
+    async def wrapped(reader, writer):
+        result = await handle_echo(reader, writer, app)
+        return result
+    coro = asyncio.start_server(wrapped, '127.0.0.1', 8888, loop=loop)
+    loop.run_until_complete(coro)
+    web.run_app(app, port=8080)</code></pre>
                       </div>
                     </div>
                 </div>
