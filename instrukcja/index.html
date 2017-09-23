@@ -41,7 +41,7 @@
     <div class="container">
         <div class="panel panel-default">
             <div class="panel-heading" style="text-align: center;">
-                <h1>asyncio w praktyce v2.0</h1>
+                <h1>asyncio w praktyce v3.0</h1>
             </div>
         </div>
         <div class="panel panel-default">
@@ -413,9 +413,9 @@ server = loop.run_until_complete(coro)</code></pre>
     async def dummy_drain():  # StreamWriter nie jest taki prosty do stworzenia, więc użyjemy mocka
         return
     writer = Mock(spec_set=StreamWriter, drain=dummy_drain)
-    reader.feed_data('QUIT\n')  # wkładamy komendę zakończenia połączenia do readera by zakończyła nam się komunikacja (patrz punkt 3)
+    reader.feed_data(b'QUIT\n')  # wkładamy komendę zakończenia połączenia do readera by zakończyła nam się komunikacja (patrz punkt 3)
 
-    await handle_admin(reader, writer)  # pozwalamy handlerowi działać. Zła implemnetacja spowoduje że tu utkniemy
+    await handle_echo(reader, writer)  # pozwalamy handlerowi działać. Zła implemnetacja spowoduje że tu utkniemy
 
     # w przypadku gdy nikogo nie podlączyliśmy do czatu powinniśmy dostać informację, że jest na nim 0 osób
     writer.write.assert_called_once_with('YOUR NICK?\n')</code></pre>
@@ -440,7 +440,7 @@ server = loop.run_until_complete(coro)</code></pre>
                         <b>Przykładowy "protokół":</b>
                         <ol>
                             <li>*Klient* podłącza się</li>
-                            <li>*Serwer* odsyła <code>YOUR_NICK?</code></li>
+                            <li>*Serwer* odsyła <code>YOUR NICK?</code></li>
                             <li>*Klient* przesyła ciąg znaków jako swój nick</li>
                             <li>*Serwer* sprawdza, czy nick jest wolny, jeśli tak - punkt 5. W przeciwnym przypadku powrót od punktu 2.</li>
                             <li>*Serwer* odpowiada <code>HELLO {NICK}</code></li>
@@ -457,7 +457,7 @@ server = loop.run_until_complete(coro)</code></pre>
                         <b>Przykładowy flow:</b>
                         <ol>
                             <li>*Klient* podłącza się</li>
-                            <li>*Serwer* odsyła <code>YOUR_NICK?</code></li>
+                            <li>*Serwer* odsyła <code>YOUR NICK?</code></li>
                             <li>*Klient* przesyła <code>JON_NODE</code></li>
                             <li>*Serwer* odpowiada <code>HELLO JON_NODE</code></li>
                             <li>*Klient* przesyła <code>STX NEXT</code></li>
