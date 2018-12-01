@@ -53,8 +53,6 @@ async def rooms(request):
 
 
 def create_app(loop=None):
-    if loop is None:
-        loop = asyncio.get_event_loop()
     app = web.Application(loop=loop)
     app.router.add_get('/', index)
     app.router.add_get('/members', members)
